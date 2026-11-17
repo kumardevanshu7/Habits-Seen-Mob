@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "408400447866",
+    "project_id": "pro13-habitseen",
+    "storage_bucket": "pro13-habitseen.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:408400447866:android:d1c593fd09120e9b21aec3",
+        "android_client_info": {
+          "package_name": "com.arigatolabs.habitsseen"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "408400447866-hfcfc8upta39jchge95nlm5b8fqcjr03.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.arigatolabs.habitsseen",
+            "certificate_hash": "7a797b04a59899b4b929df5a7fbaddf86b6c3e77"
+          }
+        },
+        {
+          "client_id": "408400447866-eo3fhd2eefmbbmonkv1vl89c5c1nhg9a.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRLMLAR8oyD1jzXDglJuqHyVq__ACwAKg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "408400447866-eo3fhd2eefmbbmonkv1vl89c5c1nhg9a.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

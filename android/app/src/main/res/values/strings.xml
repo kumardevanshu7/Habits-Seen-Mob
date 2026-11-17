@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">HabitSeen</string>
+    <string name="title_activity_main">HabitSeen</string>
+    <string name="package_name">com.arigatolabs.habitsseen</string>
+    <string name="custom_url_scheme">com.arigatolabs.habitsseen</string>
+    <string name="server_client_id">408400447866-eo3fhd2eefmbbmonkv1vl89c5c1nhg9a.apps.googleusercontent.com</string>
+</resources>
