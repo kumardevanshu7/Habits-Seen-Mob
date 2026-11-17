@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAppStore } from '../../stores/useAppStore';
+import { useAppStore, deduplicateCategories } from '../../stores/useAppStore';
 import { HabitBreak, RelapseRecord } from '../../types/habit';
 import { CATEGORY_ICONS } from '../../constants/iconsAndColors';
 import { boostVibrancy, getContrastIconColor } from '../../utils/colorUtils';
@@ -485,7 +485,7 @@ export const HabitBreakHub: React.FC = () => {
             </div>
             <div className="min-w-0 flex-1">
               <span className="text-[10px] font-mono uppercase tracking-wider text-charcoal block">
-                Live 2-Col Card Preview (1:1)
+                ✨ Habit Card Preview
               </span>
               <p className="font-display font-black text-sm text-ink truncate mt-0.5">
                 {name.trim() || 'Your Habit to Quit'}
@@ -512,7 +512,7 @@ export const HabitBreakHub: React.FC = () => {
           <CustomSelect
             label="Category"
             value={categoryId}
-            options={categories.map((c) => ({
+            options={deduplicateCategories(categories).map((c) => ({
               value: c.id,
               label: c.name,
             }))}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAppStore } from '../../stores/useAppStore';
+import { useAppStore, deduplicateCategories } from '../../stores/useAppStore';
 import { WILL_HABIT_TIERS, CATEGORY_ICONS } from '../../constants/iconsAndColors';
 import { levelFromXp, GAME_RULES } from '../../constants/gamification';
 import { boostVibrancy, getContrastIconColor } from '../../utils/colorUtils';
@@ -378,7 +378,7 @@ export const OverallAnalyticsView: React.FC<OverallAnalyticsViewProps> = ({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          {categories.map((cat) => {
+          {deduplicateCategories(categories).map((cat) => {
             const catHabits = habits.filter((h) => h.categoryId === cat.id);
             const catBreaks = habitBreaks.filter((b) => b.categoryId === cat.id && !b.isArchived);
             const Icon =

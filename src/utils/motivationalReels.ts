@@ -52,3 +52,28 @@ export const MOTIVATIONAL_REELS: MotivationalReel[] = Object.entries(reelModules
 export const getReelByNumber = (num: number): MotivationalReel | undefined => {
   return MOTIVATIONAL_REELS.find((r) => r.number === num);
 };
+
+/**
+ * Deterministically shuffles the 47 reels every 2-hour window.
+ * The playlist stays stable within each 2-hour block, but rotates
+ * automatically into a fresh order every 2 hours!
+ */
+export const getTwoHourShuffledReels = (): MotivationalReel[] => {
+  const twoHourBlock = Math.floor(Date.now() / (2 * 60 * 60 * 1000));
+  const shuffled = [...MOTIVATIONAL_REELS];
+
+  let seed = (twoHourBlock * 9301 + 49297) % 233280;
+  const rnd = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    const temp = shuffled[i];
+    shuffled[i] = shuffled[j];
+    shuffled[j] = temp;
+  }
+
+  return shuffled;
+};

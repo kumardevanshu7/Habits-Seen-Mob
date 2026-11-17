@@ -22,7 +22,10 @@ import {
   RefreshCw,
   Sparkles,
   ArrowUpCircle,
+  MessageSquarePlus,
+  ExternalLink,
 } from 'lucide-react';
+import { APP_CONFIG } from '../../constants/appConfig';
 import { SecurityModal } from '../security/SecurityModal';
 import { getNextHeartsUpgrade, GAME_RULES } from '../../constants/gamification';
 import { verifySecurityAnswer, normalizeSecurityAnswer } from '../../utils/cryptoUtils';
@@ -526,21 +529,23 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </div>
 
           {/* APP VERSION & IN-APP UPDATE CENTER (GITHUB RELEASES) */}
-          <div className="p-4 bg-surface-bone/70 border border-hairline rounded-2xl space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                  <ArrowUpCircle size={18} />
+          <div className="p-4 bg-surface-card border border-hairline rounded-2xl shadow-2xs space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <ArrowUpCircle size={20} />
                 </div>
-                <div>
-                  <h4 className="font-display font-bold text-sm text-ink flex items-center gap-2">
-                    <span>HabitSeen Updates</span>
-                    <span className="font-mono text-[10px] font-bold text-charcoal bg-surface-card px-2 py-0.5 rounded-full border border-hairline">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-display font-bold text-sm text-ink truncate">
+                      HabitSeen Updates
+                    </h4>
+                    <span className="font-mono text-[10px] font-bold text-charcoal bg-surface-bone px-2 py-0.5 rounded-full border border-hairline shrink-0">
                       v{CURRENT_APP_VERSION}
                     </span>
-                  </h4>
-                  <p className="text-[11px] text-mute">
-                    GitHub: <span className="font-mono font-medium">{GITHUB_REPO}</span>
+                  </div>
+                  <p className="text-[11px] text-mute truncate mt-0.5">
+                    Official GitHub Releases
                   </p>
                 </div>
               </div>
@@ -551,11 +556,17 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 size="sm"
                 onClick={handleCheckForUpdates}
                 disabled={updateStatus === 'checking'}
-                className="text-xs font-bold gap-1.5 shadow-2xs cursor-pointer"
+                className="text-xs font-bold gap-1.5 shadow-2xs shrink-0 px-3.5 py-1.5 h-9 cursor-pointer"
               >
-                <RefreshCw size={12} className={clsx(updateStatus === 'checking' && 'animate-spin text-primary')} />
+                <RefreshCw size={13} className={clsx(updateStatus === 'checking' && 'animate-spin text-primary')} />
                 <span>{updateStatus === 'checking' ? 'Checking...' : 'Check Updates'}</span>
               </Button>
+            </div>
+
+            {/* REPO INFO ROW */}
+            <div className="pt-2 border-t border-hairline/60 flex items-center justify-between text-[11px] text-stone">
+              <span>Cloud Distribution Channel</span>
+              <span className="font-mono font-medium text-charcoal">{GITHUB_REPO}</span>
             </div>
 
             {/* STATUS: UPDATE AVAILABLE */}
@@ -611,6 +622,33 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 </button>
               </div>
             )}
+          </div>
+
+          {/* USER FEEDBACK & VULNERABILITY / CORRECTION FORM */}
+          <div className="p-4 bg-surface-card border border-hairline rounded-2xl shadow-2xs flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                <MessageSquarePlus size={18} />
+              </div>
+              <div className="min-w-0">
+                <h4 className="font-display font-bold text-sm text-ink truncate">
+                  Feedback & Bug Reports
+                </h4>
+                <p className="text-[11px] text-mute truncate mt-0.5">
+                  Report issues, vulnerabilities, or suggest features
+                </p>
+              </div>
+            </div>
+
+            <a
+              href={APP_CONFIG.feedbackFormUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 h-9 rounded-full bg-surface-bone hover:bg-stone/20 text-ink text-xs font-bold border border-hairline transition-all active:scale-95 shrink-0"
+            >
+              <span>Submit Form</span>
+              <ExternalLink size={12} />
+            </a>
           </div>
 
           {/* DANGER ZONE: FRESH START & FULL RESET */}

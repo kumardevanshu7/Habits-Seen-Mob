@@ -258,6 +258,37 @@ function checkPerfectDayTransition(
   };
 }
 
+export const normalizeCategoryKey = (name: string) =>
+  (name || '').toLowerCase().replace(/['’"`\s_-]/g, '').trim();
+
+export const deduplicateCategories = (categories: Category[]): Category[] => {
+  const seenKeys = new Set<string>();
+  const seenIds = new Set<string>();
+  const result: Category[] = [];
+
+  // Always ensure DEFAULT_CATEGORY comes first or is preserved
+  seenKeys.add(normalizeCategoryKey(DEFAULT_CATEGORY.name));
+  seenIds.add(DEFAULT_CATEGORY.id);
+  result.push(DEFAULT_CATEGORY);
+
+  for (const cat of categories) {
+    if (!cat || !cat.name) continue;
+    if (cat.id === DEFAULT_CATEGORY.id) continue;
+    const key = normalizeCategoryKey(cat.name);
+    if (!key) continue;
+    if (seenKeys.has(key) || seenIds.has(cat.id)) continue;
+    seenKeys.add(key);
+    seenIds.add(cat.id);
+    result.push(cat);
+  }
+
+  return result.sort((a, b) => {
+    const ordA = typeof a.order === 'number' ? a.order : 999;
+    const ordB = typeof b.order === 'number' ? b.order : 999;
+    return ordA - ordB;
+  });
+};
+
 export const useAppStore = create<AppState>()((set, get) => ({
   currentUser: null,
   authLoading: true,
@@ -294,24 +325,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
 
   categories: [DEFAULT_CATEGORY],
   setCategories: (categories) => {
-    // Deduplicate by normalized name and ensure default "Others" exists
-    const uniqueMap = new Map<string, Category>();
-    
-    // Always include default category
-    uniqueMap.set('others', DEFAULT_CATEGORY);
-
-    for (const cat of categories) {
-      const norm = cat.name.trim().toLowerCase();
-      if (!uniqueMap.has(norm)) {
-        uniqueMap.set(norm, cat);
-      }
-    }
-    const sorted = Array.from(uniqueMap.values()).sort((a, b) => {
-      const ordA = typeof a.order === 'number' ? a.order : 999;
-      const ordB = typeof b.order === 'number' ? b.order : 999;
-      return ordA - ordB;
-    });
-    set({ categories: sorted });
+    set({ categories: deduplicateCategories(categories) });
   },
 
   reorderCategories: async (orderedList) => {
@@ -436,8 +450,8 @@ export const useAppStore = create<AppState>()((set, get) => ({
 
   addCategory: async (catData) => {
     const { currentUser, categories } = get();
-    const norm = catData.name.trim().toLowerCase();
-    const existing = categories.find((c) => c.name.trim().toLowerCase() === norm);
+    const norm = normalizeCategoryKey(catData.name);
+    const existing = categories.find((c) => normalizeCategoryKey(c.name) === norm);
     if (existing) {
       return existing; // Return existing category, prevent duplicates!
     }
@@ -451,7 +465,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
     if (currentUser) {
       await addCategoryToDb(currentUser.uid, newCat);
     }
-    set((s) => ({ categories: [...s.categories, newCat] }));
+    set((s) => ({ categories: deduplicateCategories([...s.categories, newCat]) }));
     return newCat;
   },
 

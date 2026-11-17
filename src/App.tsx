@@ -568,8 +568,8 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* MOBILE BOTTOM NAVIGATION BAR */}
-      {!isOnboardingActive && (
+      {/* MOBILE BOTTOM NAVIGATION BAR (Hidden during Onboarding and Fullscreen Reels) */}
+      {!isOnboardingActive && !isReelsOpen && (
         <BottomNav
           activeTab={activeTab}
           onSelectTab={handleSelectTab}

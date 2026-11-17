@@ -13,7 +13,11 @@ import {
   Share2,
 } from 'lucide-react';
 import clsx from 'clsx';
-import { MOTIVATIONAL_REELS, MotivationalReel } from '../../utils/motivationalReels';
+import {
+  MOTIVATIONAL_REELS,
+  MotivationalReel,
+  getTwoHourShuffledReels,
+} from '../../utils/motivationalReels';
 import { pushModalToStack } from '../ui/Modal';
 
 interface MotivationalReelsModalProps {
@@ -55,8 +59,13 @@ export const MotivationalReelsModal: React.FC<MotivationalReelsModalProps> = ({
     }
   }, [isOpen, initialReelIndex]);
 
-  const totalReels = MOTIVATIONAL_REELS.length;
-  const currentReel: MotivationalReel | undefined = MOTIVATIONAL_REELS[currentIndex];
+  // 2-hour dynamic shuffled playlist: automatically rotates order every 2 hours!
+  const reelsList = React.useMemo(() => {
+    return getTwoHourShuffledReels();
+  }, [isOpen]);
+
+  const totalReels = reelsList.length;
+  const currentReel: MotivationalReel | undefined = reelsList[currentIndex] || reelsList[0];
 
   // Go to next reel
   const handleNextReel = useCallback(() => {
@@ -211,12 +220,29 @@ export const MotivationalReelsModal: React.FC<MotivationalReelsModalProps> = ({
     };
   }, [isOpen]);
 
-  // Stack-safe Android back-gesture & Escape key support
+  // Stack-safe Android back-gesture & Escape key support + Hardware Volume Mute/Unmute
   useEffect(() => {
     if (!isOpen) return;
     const cleanupStack = pushModalToStack('motivational-reels', onClose);
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
+      // Hardware volume up/down or mute key toggles sound
+      if (
+        e.key === 'AudioVolumeUp' ||
+        e.key === 'AudioVolumeDown' ||
+        e.key === 'VolumeUp' ||
+        e.key === 'VolumeDown' ||
+        e.key === 'm' ||
+        e.key === 'M'
+      ) {
+        setIsMuted((prev) => {
+          const next = !prev;
+          if (videoRef.current) {
+            videoRef.current.muted = next;
+          }
+          return next;
+        });
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
@@ -231,7 +257,7 @@ export const MotivationalReelsModal: React.FC<MotivationalReelsModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center select-none"
+      className="fixed inset-0 z-[100] bg-black flex items-center justify-center select-none"
       onWheel={handleWheel}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
@@ -289,8 +315,8 @@ export const MotivationalReelsModal: React.FC<MotivationalReelsModalProps> = ({
         {/* BACKGROUND PRELOADERS FOR ADJACENT REELS (ZERO-LAG SWIPING) */}
         {currentIndex < totalReels - 1 && (
           <video
-            key={`preload-next-${MOTIVATIONAL_REELS[currentIndex + 1].id}`}
-            src={MOTIVATIONAL_REELS[currentIndex + 1].url}
+            key={`preload-next-${reelsList[currentIndex + 1].id}`}
+            src={reelsList[currentIndex + 1].url}
             preload="auto"
             className="hidden"
             muted
@@ -299,8 +325,8 @@ export const MotivationalReelsModal: React.FC<MotivationalReelsModalProps> = ({
         )}
         {currentIndex > 0 && (
           <video
-            key={`preload-prev-${MOTIVATIONAL_REELS[currentIndex - 1].id}`}
-            src={MOTIVATIONAL_REELS[currentIndex - 1].url}
+            key={`preload-prev-${reelsList[currentIndex - 1].id}`}
+            src={reelsList[currentIndex - 1].url}
             preload="auto"
             className="hidden"
             muted
@@ -369,7 +395,7 @@ export const MotivationalReelsModal: React.FC<MotivationalReelsModalProps> = ({
         )}
 
         {/* RIGHT ACTION RAIL (LIKE INSTAGRAM REELS) */}
-        <div className="absolute right-3 bottom-24 flex flex-col items-center gap-4 z-20 pointer-events-auto">
+        <div className="absolute right-3 bottom-28 safe-bottom flex flex-col items-center gap-4 z-20 pointer-events-auto">
           {/* Like Heart Button */}
           <button
             type="button"
@@ -434,7 +460,7 @@ export const MotivationalReelsModal: React.FC<MotivationalReelsModalProps> = ({
         </div>
 
         {/* BOTTOM METADATA & REEL INFO */}
-        <div className="absolute bottom-0 inset-x-0 p-4 pt-10 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-20 pointer-events-none">
+        <div className="absolute bottom-0 inset-x-0 p-4 pt-10 pb-8 safe-bottom bg-gradient-to-t from-black/95 via-black/50 to-transparent z-20 pointer-events-none">
           <div className="pr-14">
             <div className="flex items-center gap-1.5 mb-1">
               <span className="px-2 py-0.5 rounded-full bg-rose-600/90 text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-md">

@@ -33,6 +33,7 @@ import {
   Film,
   Play,
   ArrowRight,
+  CheckCircle2,
 } from 'lucide-react';
 import { MotivationalReelsModal } from '../reels/MotivationalReelsModal';
 import { MOTIVATIONAL_REELS } from '../../utils/motivationalReels';
@@ -292,26 +293,49 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* 0. GROUND ZERO HERO CARD (MATCHING SCREEN 1 FIGMA MOCKUP) */}
+      {/* 0. GROUND ZERO HERO CARD (REAL DAILY DISCIPLINE ANALYTICS) */}
       <div className="relative overflow-hidden rounded-3xl bg-[#e0d7ff] p-5 sm:p-6 shadow-xs border border-[#cbbafd]/50">
         <h2 className="font-display font-extrabold text-xl sm:text-2xl text-zinc-900 tracking-tight max-w-xs leading-snug mb-4">
           Mastering habits with discipline
         </h2>
 
-        {/* Black Widget Card with Timer & Alarm Clock Accent */}
+        {/* Live Daily Analytics Widget Card */}
         <div className="bg-[#18181b] text-white rounded-2xl p-4 flex items-center justify-between shadow-lg">
-          <div>
+          <div className="space-y-1">
             <div className="font-display font-extrabold text-2xl sm:text-3xl text-white tracking-tight flex items-center gap-2">
-              <span>7h 34 m</span>
+              {totalDueCount === 0 ? (
+                <span>All Caught Up</span>
+              ) : isAllCompletedToday ? (
+                <span className="text-emerald-400">100% Done</span>
+              ) : (
+                <span>
+                  {Math.max(0, 23 - new Date().getHours())}h {Math.max(0, 59 - new Date().getMinutes())}m Left
+                </span>
+              )}
             </div>
-            <p className="text-xs text-zinc-400 font-medium mt-1">
-              Your habit target almost done
+            <p className="text-xs text-zinc-400 font-medium">
+              {totalDueCount === 0
+                ? 'No pending tasks scheduled for today.'
+                : isAllCompletedToday
+                ? `All ${completedDueCount} tasks completed today! +100 bonus XP awarded.`
+                : `${completedDueCount} of ${totalDueCount} tasks completed (${totalDueCount > 0 ? Math.round((completedDueCount / totalDueCount) * 100) : 0}%) · ${totalDueCount - completedDueCount} remaining.`}
             </p>
           </div>
 
-          {/* 3D Yellow Alarm Clock Icon */}
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-amber-300 text-zinc-900 flex items-center justify-center shadow-md rotate-6 shrink-0">
-            <Zap size={28} className="fill-current text-zinc-900" />
+          {/* 3D Dynamic Badge */}
+          <div
+            className={clsx(
+              'w-14 h-14 rounded-2xl flex items-center justify-center shadow-md rotate-6 shrink-0 transition-all',
+              isAllCompletedToday
+                ? 'bg-gradient-to-tr from-emerald-400 to-teal-300 text-zinc-900'
+                : 'bg-gradient-to-tr from-amber-400 to-amber-300 text-zinc-900'
+            )}
+          >
+            {isAllCompletedToday ? (
+              <CheckCircle2 size={30} className="text-zinc-900" />
+            ) : (
+              <Zap size={28} className="fill-current text-zinc-900" />
+            )}
           </div>
         </div>
       </div>
@@ -775,14 +799,14 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
         <div
           className={clsx(
             viewMode === 'grid'
-              ? 'columns-1 md:columns-2 gap-3.5'
+              ? 'grid grid-cols-2 gap-2.5 sm:gap-3.5'
               : 'flex flex-col gap-3 sm:gap-3.5'
           )}
         >
           {dueHabits.map((habit) => (
             <div
               key={habit.id}
-              className={clsx(viewMode === 'grid' && 'break-inside-avoid mb-3.5')}
+              className={clsx(viewMode === 'grid' ? 'h-full flex flex-col' : '')}
             >
               <HabitCard
                 habit={habit}
