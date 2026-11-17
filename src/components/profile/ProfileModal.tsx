@@ -18,11 +18,21 @@ import {
   CheckCircle2,
   AlertTriangle,
   Skull,
+  Download,
+  RefreshCw,
+  Sparkles,
+  ArrowUpCircle,
 } from 'lucide-react';
 import { SecurityModal } from '../security/SecurityModal';
 import { getNextHeartsUpgrade, GAME_RULES } from '../../constants/gamification';
 import { verifySecurityAnswer, normalizeSecurityAnswer } from '../../utils/cryptoUtils';
 import clsx from 'clsx';
+import {
+  checkForAppUpdate,
+  CURRENT_APP_VERSION,
+  GITHUB_REPO,
+  AppReleaseInfo,
+} from '../../services/updateService';
 
 import { Trophy, ChevronRight } from 'lucide-react';
 import { BrandLegalTab } from '../brand/BrandLegalModal';
@@ -64,6 +74,33 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
   // Danger Zone Reset State
   const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
+
+  // In-App Updates from GitHub Releases
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'latest' | 'error'>('idle');
+  const [updateInfo, setUpdateInfo] = useState<AppReleaseInfo | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  const handleCheckForUpdates = async () => {
+    setUpdateStatus('checking');
+    setUpdateError(null);
+    try {
+      const release = await checkForAppUpdate();
+      setUpdateInfo(release);
+      if (release.hasUpdate) {
+        setUpdateStatus('available');
+      } else {
+        setUpdateStatus('latest');
+      }
+    } catch (err: any) {
+      setUpdateStatus('error');
+      setUpdateError(err?.message || 'Could not connect to GitHub. Check internet connection.');
+    }
+  };
+
+  const handleDownloadUpdate = () => {
+    if (!updateInfo?.apkDownloadUrl) return;
+    window.open(updateInfo.apkDownloadUrl, '_system');
+  };
 
   if (!user || !currentUser) return null;
 
@@ -485,6 +522,94 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   </Button>
                 </div>
               </form>
+            )}
+          </div>
+
+          {/* APP VERSION & IN-APP UPDATE CENTER (GITHUB RELEASES) */}
+          <div className="p-4 bg-surface-bone/70 border border-hairline rounded-2xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <ArrowUpCircle size={18} />
+                </div>
+                <div>
+                  <h4 className="font-display font-bold text-sm text-ink flex items-center gap-2">
+                    <span>HabitSeen Updates</span>
+                    <span className="font-mono text-[10px] font-bold text-charcoal bg-surface-card px-2 py-0.5 rounded-full border border-hairline">
+                      v{CURRENT_APP_VERSION}
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-mute">
+                    GitHub: <span className="font-mono font-medium">{GITHUB_REPO}</span>
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleCheckForUpdates}
+                disabled={updateStatus === 'checking'}
+                className="text-xs font-bold gap-1.5 shadow-2xs cursor-pointer"
+              >
+                <RefreshCw size={12} className={clsx(updateStatus === 'checking' && 'animate-spin text-primary')} />
+                <span>{updateStatus === 'checking' ? 'Checking...' : 'Check Updates'}</span>
+              </Button>
+            </div>
+
+            {/* STATUS: UPDATE AVAILABLE */}
+            {updateStatus === 'available' && updateInfo && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2 animate-in fade-in duration-300">
+                <div className="flex items-center justify-between text-xs text-emerald-900 font-bold">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-emerald-600" />
+                    New Version Available: v{updateInfo.version}
+                  </span>
+                  <span className="text-[10px] text-emerald-700 font-mono">
+                    {updateInfo.publishedAt.slice(0, 10)}
+                  </span>
+                </div>
+                {updateInfo.notes && (
+                  <p className="text-xs text-emerald-800 leading-relaxed font-normal bg-white/70 p-2.5 rounded-lg border border-emerald-200/60">
+                    {updateInfo.notes}
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={handleDownloadUpdate}
+                  className="w-full gap-2 font-bold shadow-xs cursor-pointer"
+                >
+                  <Download size={14} /> Download & Install APK Update
+                </Button>
+              </div>
+            )}
+
+            {/* STATUS: ALREADY UP TO DATE */}
+            {updateStatus === 'latest' && (
+              <div className="p-2.5 bg-zinc-100 border border-zinc-200 rounded-xl flex items-center gap-2 text-xs text-zinc-700 animate-in fade-in duration-300">
+                <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                <span>You're on the latest build (v{CURRENT_APP_VERSION})! All up to date.</span>
+              </div>
+            )}
+
+            {/* STATUS: ERROR */}
+            {updateStatus === 'error' && (
+              <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-2 text-xs text-amber-800 animate-in fade-in duration-300">
+                <div className="flex items-center gap-1.5">
+                  <AlertTriangle size={15} className="text-amber-600 shrink-0" />
+                  <span>{updateError || 'GitHub check failed.'}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCheckForUpdates}
+                  className="text-primary font-bold hover:underline shrink-0 text-[11px]"
+                >
+                  Retry
+                </button>
+              </div>
             )}
           </div>
 

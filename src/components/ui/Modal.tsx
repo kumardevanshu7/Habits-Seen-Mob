@@ -63,6 +63,21 @@ export const hasOpenModals = (): boolean => {
   return openModalStack.length > 0;
 };
 
+export const pushModalToStack = (id: string, close: () => void): (() => void) => {
+  const entry: ModalStackEntry = {
+    id,
+    close,
+    closedByPopState: false,
+  };
+  openModalStack.push(entry);
+  return () => {
+    const idx = openModalStack.indexOf(entry);
+    if (idx !== -1) {
+      openModalStack.splice(idx, 1);
+    }
+  };
+};
+
 export const closeTopModal = (): boolean => {
   if (openModalStack.length > 0) {
     const topModal = openModalStack[openModalStack.length - 1];

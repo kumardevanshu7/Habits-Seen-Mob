@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { MOTIVATIONAL_REELS, MotivationalReel } from '../../utils/motivationalReels';
+import { pushModalToStack } from '../ui/Modal';
 
 interface MotivationalReelsModalProps {
   isOpen: boolean;
@@ -209,6 +210,20 @@ export const MotivationalReelsModal: React.FC<MotivationalReelsModalProps> = ({
       document.body.style.overflow = '';
     };
   }, [isOpen]);
+
+  // Stack-safe Android back-gesture & Escape key support
+  useEffect(() => {
+    if (!isOpen) return;
+    const cleanupStack = pushModalToStack('motivational-reels', onClose);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      cleanupStack();
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen || !currentReel) return null;
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
 import { Button } from '../ui/Button';
 import { logOut } from '../../services/firebase';
-import { Plus, Bell, Search, Heart, Zap, Flame, CheckSquare, Clock, BarChart2, Info, Sparkles, User as UserIcon } from 'lucide-react';
+import { Plus, Bell, Search, Heart, Zap, Flame, CheckSquare, Clock, BarChart2, Info, Sparkles, User as UserIcon, Play } from 'lucide-react';
 import clsx from 'clsx';
 import { PointsSystemModal } from './PointsSystemModal';
 import { ProfileModal } from '../profile/ProfileModal';
@@ -14,6 +14,7 @@ interface NavbarProps {
   onSelectTab: (tab: 'habits' | 'challenges' | 'tracking' | 'breaks' | 'analytics') => void;
   onOpenCreateHabit: () => void;
   onOpenProfile?: () => void;
+  onOpenReels?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -21,6 +22,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectTab,
   onOpenCreateHabit,
   onOpenProfile,
+  onOpenReels,
 }) => {
   const { user, currentUser, challenges } = useAppStore();
   const [isPointsInfoOpen, setIsPointsInfoOpen] = useState(false);
@@ -79,6 +81,23 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* RIGHT: NOTIFICATION BELL + SEARCH BUTTON + ADD HABIT CTA */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Motivational Reels (47 Videos) Button */}
+            {onOpenReels && (
+              <button
+                type="button"
+                onClick={onOpenReels}
+                className="relative w-10 h-10 rounded-full bg-gradient-to-tr from-rose-500 via-primary to-amber-500 p-[1.5px] shadow-2xs hover:scale-105 active:scale-95 transition-all cursor-pointer group"
+                title="Watch Motivational Reels (47 Videos)"
+              >
+                <div className="w-full h-full rounded-full bg-white flex items-center justify-center text-primary group-hover:bg-rose-50 transition-colors">
+                  <Play size={14} className="fill-primary translate-x-0.5" />
+                </div>
+                <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full bg-rose-600 text-white font-mono text-[9px] font-black shadow-xs animate-pulse">
+                  47
+                </span>
+              </button>
+            )}
+
             {/* Notification Bell */}
             <button
               type="button"

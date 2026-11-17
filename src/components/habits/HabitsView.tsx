@@ -32,6 +32,7 @@ import {
   Calendar,
   Film,
   Play,
+  ArrowRight,
 } from 'lucide-react';
 import { MotivationalReelsModal } from '../reels/MotivationalReelsModal';
 import { MOTIVATIONAL_REELS } from '../../utils/motivationalReels';
@@ -313,6 +314,47 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
             <Zap size={28} className="fill-current text-zinc-900" />
           </div>
         </div>
+      </div>
+
+      {/* 0.5 MOTIVATIONAL REELS CARD (47 HIGH-ENERGY DISCIPLINE CLIPS) */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-zinc-950 via-zinc-900 to-stone-900 p-4 sm:p-5 text-white shadow-sm border border-zinc-800 flex items-center justify-between gap-3">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="flex items-center gap-3.5 min-w-0 z-10">
+          <div className="relative shrink-0">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-500 via-primary to-amber-500 p-[2px] shadow-md">
+              <div className="w-full h-full rounded-[14px] bg-zinc-950 flex items-center justify-center">
+                <Play size={20} className="fill-primary text-primary ml-0.5" />
+              </div>
+            </div>
+            <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-rose-600 text-white font-mono text-[9px] font-black shadow-xs animate-pulse">
+              {MOTIVATIONAL_REELS.length}
+            </span>
+          </div>
+
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h4 className="font-display font-extrabold text-sm sm:text-base tracking-tight text-white">
+                Discipline Fuel Reels
+              </h4>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-300 bg-amber-950/70 border border-amber-800/80 px-2 py-0.2 rounded-full">
+                Shorts
+              </span>
+            </div>
+            <p className="text-xs text-zinc-400 truncate mt-0.5">
+              Swipe 47 full-screen mindset & discipline reels
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setIsReelsOpen(true)}
+          className="z-10 px-4 py-2.5 rounded-2xl bg-primary hover:bg-primary-deep text-white font-display font-bold text-xs shadow-md hover:shadow-lg transition-all active:scale-95 shrink-0 flex items-center gap-1.5 cursor-pointer"
+        >
+          <span>Watch</span>
+          <ArrowRight size={14} />
+        </button>
       </div>
 
       {/* 1. DATE PICKER STRIP */}

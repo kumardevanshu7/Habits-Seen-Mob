@@ -26,6 +26,7 @@ import { ProfileModal } from './components/profile/ProfileModal';
 import { ZeroVitalityPurgeModal } from './components/gamification/ZeroVitalityPurgeModal';
 import { DashboardFooter } from './components/navigation/DashboardFooter';
 import { AchievementsModal } from './components/achievements/AchievementsModal';
+import { MotivationalReelsModal } from './components/reels/MotivationalReelsModal';
 import { BrandLegalModal, BrandLegalTab } from './components/brand/BrandLegalModal';
 import { isModalHandlingPopState, closeTopModal } from './components/ui/Modal';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -73,6 +74,7 @@ export const App: React.FC = () => {
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isAchievementsOpen, setIsAchievementsOpen] = useState(false);
+  const [isReelsOpen, setIsReelsOpen] = useState(false);
   const [isBrandLegalOpen, setIsBrandLegalOpen] = useState(false);
   const [brandLegalTab, setBrandLegalTab] = useState<BrandLegalTab>('explore');
   const [splashTimedOut, setSplashTimedOut] = useState(false);
@@ -495,6 +497,7 @@ export const App: React.FC = () => {
           setIsCreateHabitOpen(true);
         }}
         onOpenProfile={() => setIsProfileOpen(true)}
+        onOpenReels={() => setIsReelsOpen(true)}
       />
 
       {/* MAIN CONTAINER */}
@@ -593,6 +596,12 @@ export const App: React.FC = () => {
       <AchievementsModal
         isOpen={isAchievementsOpen}
         onClose={() => setIsAchievementsOpen(false)}
+      />
+
+      {/* MOTIVATIONAL REELS PLAYER MODAL (47 HIGH-ENERGY DISCIPLINE CLIPS) */}
+      <MotivationalReelsModal
+        isOpen={isReelsOpen}
+        onClose={() => setIsReelsOpen(false)}
       />
 
       {/* ARIGATO LABS COMPANY & LEGAL MODAL */}
