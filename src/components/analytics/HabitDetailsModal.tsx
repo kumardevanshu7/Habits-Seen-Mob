@@ -418,12 +418,12 @@ export const HabitDetailsModal: React.FC<HabitDetailsModalProps> = ({
 
         {/* 3. STREAK CHALLENGE TROPHY RACK (10 MILESTONES) */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-charcoal ml-1">
-              Streak Challenge Badges (10 Milestones)
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-charcoal ml-1 truncate min-w-0">
+              Streak Challenge Badges
             </h4>
-            <span className="text-xs text-primary font-semibold flex items-center gap-1">
-              <Sparkles size={13} /> {unlockedBadgesCount} / {STREAK_CHALLENGES.length} Unlocked
+            <span className="text-xs text-primary font-semibold flex items-center gap-1 whitespace-nowrap shrink-0">
+              <Sparkles size={13} className="shrink-0" /> {unlockedBadgesCount} / {STREAK_CHALLENGES.length} Unlocked
             </span>
           </div>
 
