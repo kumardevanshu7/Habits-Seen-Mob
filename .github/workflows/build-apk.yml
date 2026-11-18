@@ -112,12 +112,10 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: HabitSeen ${{ steps.vars.outputs.tag_name }}
           body: |
-            ### 🚀 HabitSeen Automatic Cloud Build
-            * **Commit**: `${{ steps.vars.outputs.short_sha }}`
-            * **Message**: ${{ steps.vars.outputs.commit_msg }}
-            * **Built by**: GitHub Actions CI/CD
+            Commit: ${{ steps.vars.outputs.short_sha }}
+            Message: ${{ steps.vars.outputs.commit_msg }}
             
-            Download the attached `HabitSeen.apk` below to update your device.
+            HabitSeen cloud build with live update bundle (bundle.zip) and installer APK (HabitSeen.apk).
           draft: false
           prerelease: false
           make_latest: true

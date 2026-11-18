@@ -34,6 +34,7 @@ import {
   checkForAppUpdate,
   downloadLiveUpdate,
   restartApp,
+  parseReleaseNotes,
   CURRENT_APP_VERSION,
   GITHUB_REPO,
   AppReleaseInfo,
@@ -606,83 +607,97 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             </Button>
 
             {/* STATUS: UPDATE AVAILABLE */}
-            {updateStatus === 'available' && updateInfo && (
-              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2.5 animate-in fade-in duration-300">
-                <div className="flex items-center justify-between text-xs text-emerald-900 font-bold">
-                  <span className="flex items-center gap-1.5">
-                    <Sparkles size={14} className="text-emerald-600" />
-                    New Version: {updateInfo.version}
-                  </span>
-                  <span className="text-[10px] text-emerald-700 font-mono">
-                    {updateInfo.publishedAt.slice(0, 10)}
-                  </span>
-                </div>
-                {updateInfo.notes && (
-                  <p className="text-xs text-emerald-800 leading-relaxed font-normal bg-white/70 p-2.5 rounded-lg border border-emerald-200/60 whitespace-pre-line">
-                    {updateInfo.notes}
-                  </p>
-                )}
-
-                {updateError && (
-                  <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs text-amber-800">
-                    <AlertTriangle size={15} className="text-amber-600 shrink-0" />
-                    <span>{updateError}</span>
+            {updateStatus === 'available' && updateInfo && (() => {
+              const parsed = parseReleaseNotes(updateInfo.notes, updateInfo.version);
+              return (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-3 animate-in fade-in duration-300">
+                  <div className="flex items-center justify-between text-xs text-emerald-950 font-bold">
+                    <span className="flex items-center gap-1.5 font-display text-sm tracking-tight">
+                      <Sparkles size={15} className="text-emerald-600 shrink-0" />
+                      Version {updateInfo.version}
+                    </span>
+                    <span className="text-[10px] text-emerald-700 font-mono bg-white/70 px-2 py-0.5 rounded-full border border-emerald-200/60">
+                      {updateInfo.publishedAt.slice(0, 10)}
+                    </span>
                   </div>
-                )}
 
-                {/* PRIMARY ACTION */}
-                {updateInfo.bundleUrl ? (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    onClick={handleStartLiveDownload}
-                    className="w-full gap-2 font-bold shadow-xs cursor-pointer"
-                  >
-                    <Zap size={14} className="fill-current" /> Download & Apply Live Update (OTA)
-                  </Button>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl flex items-start gap-2 text-amber-900 text-xs">
-                      <RefreshCw size={15} className="text-amber-600 shrink-0 mt-0.5 animate-spin" />
-                      <div>
-                        <strong className="block font-bold">Cloud Live Update Bundle Generating...</strong>
-                        <p className="text-[11px] text-amber-800">
-                          GitHub Actions cloud is compiling the in-app live update bundle for this commit (~2 mins). Tap 'Refresh Status' once ready to apply it directly inside the app without reinstalling!
-                        </p>
-                      </div>
+                  {/* FORMATTED RELEASE DETAILS CARD */}
+                  <div className="bg-white/95 p-3 rounded-xl border border-emerald-200/80 shadow-2xs space-y-1.5 text-left">
+                    <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                      <span className="text-[11px] font-bold text-emerald-900 uppercase tracking-wide">
+                        What's New
+                      </span>
+                      {parsed.commitSha && (
+                        <span className="font-mono text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-200">
+                          commit {parsed.commitSha}
+                        </span>
+                      )}
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCheckForUpdates}
-                      className="w-full gap-2 font-bold shadow-xs cursor-pointer"
-                    >
-                      <RefreshCw size={14} /> Refresh Update Status
-                    </Button>
+                    <p className="text-xs text-zinc-700 leading-relaxed font-medium">
+                      {parsed.message}
+                    </p>
+                  </div>
+
+                  {updateError && (
+                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs text-amber-800">
+                      <AlertTriangle size={15} className="text-amber-600 shrink-0" />
+                      <span>{updateError}</span>
+                    </div>
+                  )}
+
+                  {/* PRIMARY ACTION */}
+                  {updateInfo.bundleUrl ? (
+                    <div className="space-y-1.5 pt-0.5">
+                      <Button
+                        type="button"
+                        variant="primary"
+                        size="md"
+                        onClick={handleStartLiveDownload}
+                        className="w-full gap-2 font-bold shadow-sm cursor-pointer text-xs sm:text-sm py-2.5 h-auto min-h-[42px] justify-center"
+                      >
+                        <Zap size={15} className="fill-current shrink-0" />
+                        <span>Download & Apply Update</span>
+                      </Button>
+                      <p className="text-[10px] text-emerald-800 text-center font-medium">
+                        ⚡ In-app live update • No APK reinstall needed
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl flex items-start gap-2 text-amber-900 text-xs">
+                        <RefreshCw size={15} className="text-amber-600 shrink-0 mt-0.5 animate-spin" />
+                        <div>
+                          <strong className="block font-bold">Cloud Live Update Bundle Generating...</strong>
+                          <p className="text-[11px] text-amber-800">
+                            GitHub Actions cloud is compiling the in-app live update bundle for this commit (~2 mins). Tap 'Refresh Status' once ready to apply it directly inside the app without reinstalling!
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCheckForUpdates}
+                        className="w-full gap-2 font-bold shadow-xs cursor-pointer"
+                      >
+                        <RefreshCw size={14} /> Refresh Update Status
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* OPTIONAL FULL APK DOWNLOAD FALLBACK */}
+                  {updateInfo.apkDownloadUrl && (
                     <button
                       type="button"
                       onClick={handleDownloadFullApk}
-                      className="w-full text-center text-[11px] text-stone font-semibold hover:underline pt-0.5 cursor-pointer flex items-center justify-center gap-1"
+                      className="w-full text-center text-[11px] text-zinc-500 hover:text-zinc-800 font-semibold hover:underline pt-0.5 cursor-pointer flex items-center justify-center gap-1"
                     >
-                      <Download size={11} /> Or download full APK manually
+                      <Download size={11} /> Or download full APK installer
                     </button>
-                  </div>
-                )}
-
-                {/* OPTIONAL FULL APK DOWNLOAD FALLBACK */}
-                {updateInfo.bundleUrl && updateInfo.apkDownloadUrl && (
-                  <button
-                    type="button"
-                    onClick={handleDownloadFullApk}
-                    className="w-full text-center text-[11px] text-emerald-700 font-semibold hover:underline pt-0.5 cursor-pointer flex items-center justify-center gap-1"
-                  >
-                    <Download size={11} /> Or download full APK package
-                  </button>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              );
+            })()}
 
             {/* STATUS: DOWNLOADING LIVE ANIMATION */}
             {updateStatus === 'downloading' && (

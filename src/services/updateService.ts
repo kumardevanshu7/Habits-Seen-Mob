@@ -25,6 +25,53 @@ export interface AppReleaseInfo {
   isLiveUpdate?: boolean; // True if OTA live update bundle is available
 }
 
+export interface ParsedReleaseDetails {
+  title: string;
+  commitSha?: string;
+  message: string;
+}
+
+/**
+ * Strips raw markdown syntax and cleanly formats release notes for mobile display
+ */
+export function parseReleaseNotes(rawNotes: string, version?: string): ParsedReleaseDetails {
+  if (!rawNotes) {
+    return {
+      title: 'Update Highlights',
+      commitSha: version?.includes('-') ? version.split('-').slice(1).join('-') : undefined,
+      message: 'Includes stability and performance improvements.',
+    };
+  }
+
+  const commitMatch = rawNotes.match(/Commit[\*:`\s]+([a-f0-9]{7,40})/i);
+  const commitSha = commitMatch
+    ? commitMatch[1]
+    : version?.includes('-')
+    ? version.split('-').slice(1).join('-')
+    : undefined;
+
+  const messageMatch = rawNotes.match(/Message[\*:`\s]+([^\n\r]+)/i);
+  let cleanMessage = messageMatch ? messageMatch[1].trim() : '';
+
+  if (!cleanMessage) {
+    cleanMessage = rawNotes
+      .replace(/###\s*[^\n\r]+/g, '')
+      .replace(/\*\s*\*\*Commit\*\*[^\n\r]+/gi, '')
+      .replace(/\*\s*\*\*Built by\*\*[^\n\r]+/gi, '')
+      .replace(/Download the attached[^\n\r]+/gi, '')
+      .replace(/[\*`#_]/g, '')
+      .trim();
+  }
+
+  cleanMessage = cleanMessage.replace(/^["'`]+|["'`]+$/g, '').trim();
+
+  return {
+    title: 'Update Highlights',
+    commitSha,
+    message: cleanMessage || 'Bug fixes, UI enhancements, and stability improvements.',
+  };
+}
+
 export const CURRENT_APP_VERSION = '1.0.0';
 export const CURRENT_BUILD_COMMIT =
   ((import.meta as any).env?.VITE_COMMIT_SHA as string) || '1ea0fa4'; // Injected build commit SHA
