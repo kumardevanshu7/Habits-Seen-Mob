@@ -89,7 +89,10 @@ jobs:
             exit 1
           fi
           mkdir -p android/app/build/outputs/apk/debug
-          cp "$APK_PATH" android/app/build/outputs/apk/debug/HabitSeen.apk
+          if [ "$APK_PATH" != "android/app/build/outputs/apk/debug/HabitSeen.apk" ]; then
+            cp "$APK_PATH" android/app/build/outputs/apk/debug/HabitSeen.apk
+          fi
+          test -f android/app/build/outputs/apk/debug/HabitSeen.apk
           ls -lh android/app/build/outputs/apk/debug/HabitSeen.apk
 
       - name: Extract Commit Info
