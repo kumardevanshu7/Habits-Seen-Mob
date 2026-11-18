@@ -32,12 +32,14 @@ import { verifySecurityAnswer, normalizeSecurityAnswer } from '../../utils/crypt
 import clsx from 'clsx';
 import {
   checkForAppUpdate,
+  downloadLiveUpdate,
+  restartApp,
   CURRENT_APP_VERSION,
   GITHUB_REPO,
   AppReleaseInfo,
 } from '../../services/updateService';
 
-import { Trophy, ChevronRight } from 'lucide-react';
+import { Trophy, ChevronRight, RotateCcw, ArrowDownCircle } from 'lucide-react';
 import { BrandLegalTab } from '../brand/BrandLegalModal';
 
 interface ProfileModalProps {
@@ -78,10 +80,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   // Danger Zone Reset State
   const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
 
-  // In-App Updates from GitHub Releases
-  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'latest' | 'error'>('idle');
+  // In-App Updates from GitHub Releases & Live OTA
+  const [updateStatus, setUpdateStatus] = useState<
+    'idle' | 'checking' | 'available' | 'downloading' | 'ready-to-restart' | 'latest' | 'error'
+  >('idle');
   const [updateInfo, setUpdateInfo] = useState<AppReleaseInfo | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number>(0);
+  const [isRestartModalOpen, setIsRestartModalOpen] = useState<boolean>(false);
 
   const handleCheckForUpdates = async () => {
     setUpdateStatus('checking');
@@ -96,11 +102,38 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       }
     } catch (err: any) {
       setUpdateStatus('error');
-      setUpdateError(err?.message || 'Could not connect to GitHub. Check internet connection.');
+      setUpdateError(err?.message || 'Could not connect to GitHub. Please check internet connection.');
     }
   };
 
-  const handleDownloadUpdate = () => {
+  const handleStartLiveDownload = async () => {
+    if (!updateInfo) return;
+    setUpdateStatus('downloading');
+    setDownloadProgress(0);
+
+    const targetUrl = updateInfo.bundleUrl || updateInfo.apkDownloadUrl || '';
+    const res = await downloadLiveUpdate(
+      targetUrl,
+      updateInfo.version,
+      (percent) => {
+        setDownloadProgress(percent);
+      }
+    );
+
+    if (res.success) {
+      setUpdateStatus('ready-to-restart');
+      setIsRestartModalOpen(true);
+    } else {
+      setUpdateStatus('available');
+      setUpdateError(res.error || 'Live bundle update failed. You can still download the full APK.');
+    }
+  };
+
+  const handleRestartNow = async () => {
+    await restartApp();
+  };
+
+  const handleDownloadFullApk = () => {
     if (!updateInfo?.apkDownloadUrl) return;
     window.open(updateInfo.apkDownloadUrl, '_system');
   };
@@ -528,7 +561,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             )}
           </div>
 
-          {/* APP VERSION & IN-APP UPDATE CENTER (GITHUB RELEASES) */}
+          {/* APP VERSION & IN-APP UPDATE CENTER (GITHUB RELEASES & LIVE OTA) */}
           <div className="p-4 bg-surface-card border border-hairline rounded-2xl shadow-2xs space-y-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
@@ -540,7 +573,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     App Updates
                   </h4>
                   <p className="text-[11px] text-mute">
-                    Official GitHub Releases
+                    Live OTA & GitHub Releases
                   </p>
                 </div>
               </div>
@@ -555,38 +588,97 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               variant="outline"
               size="sm"
               onClick={handleCheckForUpdates}
-              disabled={updateStatus === 'checking'}
+              disabled={updateStatus === 'checking' || updateStatus === 'downloading'}
               className="w-full text-xs font-bold gap-1.5 shadow-2xs h-9 cursor-pointer justify-center"
             >
               <RefreshCw size={13} className={clsx(updateStatus === 'checking' && 'animate-spin text-primary')} />
-              <span>{updateStatus === 'checking' ? 'Checking for Updates...' : 'Check for Updates'}</span>
+              <span>{updateStatus === 'checking' ? 'Checking GitHub for Updates...' : 'Check for Updates'}</span>
             </Button>
 
             {/* STATUS: UPDATE AVAILABLE */}
             {updateStatus === 'available' && updateInfo && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2 animate-in fade-in duration-300">
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2.5 animate-in fade-in duration-300">
                 <div className="flex items-center justify-between text-xs text-emerald-900 font-bold">
                   <span className="flex items-center gap-1.5">
                     <Sparkles size={14} className="text-emerald-600" />
-                    New Version: v{updateInfo.version}
+                    New Version: {updateInfo.version}
                   </span>
                   <span className="text-[10px] text-emerald-700 font-mono">
                     {updateInfo.publishedAt.slice(0, 10)}
                   </span>
                 </div>
                 {updateInfo.notes && (
-                  <p className="text-xs text-emerald-800 leading-relaxed font-normal bg-white/70 p-2.5 rounded-lg border border-emerald-200/60">
+                  <p className="text-xs text-emerald-800 leading-relaxed font-normal bg-white/70 p-2.5 rounded-lg border border-emerald-200/60 whitespace-pre-line">
                     {updateInfo.notes}
                   </p>
                 )}
+
+                {/* PRIMARY ACTION: LIVE OTA UPDATE (NO MANUAL APK INSTALLATION REQUIRED) */}
                 <Button
                   type="button"
                   variant="primary"
                   size="sm"
-                  onClick={handleDownloadUpdate}
+                  onClick={handleStartLiveDownload}
                   className="w-full gap-2 font-bold shadow-xs cursor-pointer"
                 >
-                  <Download size={14} /> Download & Install APK Update
+                  <Zap size={14} className="fill-current" /> Download & Apply Live Update (OTA)
+                </Button>
+
+                {/* OPTIONAL FULL APK DOWNLOAD FALLBACK */}
+                {updateInfo.apkDownloadUrl && (
+                  <button
+                    type="button"
+                    onClick={handleDownloadFullApk}
+                    className="w-full text-center text-[11px] text-emerald-700 font-semibold hover:underline pt-0.5 cursor-pointer flex items-center justify-center gap-1"
+                  >
+                    <Download size={11} /> Or download full APK package
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* STATUS: DOWNLOADING LIVE ANIMATION */}
+            {updateStatus === 'downloading' && (
+              <div className="p-4 bg-gradient-to-br from-primary/5 via-primary/10 to-transparent border border-primary/20 rounded-xl space-y-3 animate-in fade-in duration-300">
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 text-primary font-bold">
+                    <ArrowDownCircle size={16} className="animate-bounce" />
+                    <span>Downloading Live Update Bundle...</span>
+                  </div>
+                  <span className="font-mono text-xs font-black text-primary">
+                    {downloadProgress}%
+                  </span>
+                </div>
+
+                {/* Glowing Animated Progress Bar */}
+                <div className="w-full bg-surface-bone rounded-full h-2.5 overflow-hidden p-0.5 border border-hairline">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-primary via-rose-500 to-amber-400 transition-all duration-300 shadow-sm"
+                    style={{ width: `${Math.max(6, downloadProgress)}%` }}
+                  />
+                </div>
+
+                <p className="text-[10px] text-mute text-center italic">
+                  Fetching updated web bundle from GitHub... Please do not close the app.
+                </p>
+              </div>
+            )}
+
+            {/* STATUS: READY TO RESTART */}
+            {updateStatus === 'ready-to-restart' && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2 animate-in fade-in duration-300">
+                <div className="flex items-center gap-2 text-emerald-900 font-bold text-xs">
+                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                  <span>Update downloaded and ready to apply!</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setIsRestartModalOpen(true)}
+                  className="w-full font-bold gap-2 shadow-xs cursor-pointer"
+                >
+                  <RotateCcw size={14} /> Restart Application to Apply
                 </Button>
               </div>
             )}
@@ -602,14 +694,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             {/* STATUS: ERROR */}
             {updateStatus === 'error' && (
               <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-2 text-xs text-amber-800 animate-in fade-in duration-300">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
                   <AlertTriangle size={15} className="text-amber-600 shrink-0" />
-                  <span>{updateError || 'GitHub check failed.'}</span>
+                  <span className="truncate">{updateError || 'GitHub check failed.'}</span>
                 </div>
                 <button
                   type="button"
                   onClick={handleCheckForUpdates}
-                  className="text-primary font-bold hover:underline shrink-0 text-[11px]"
+                  className="text-primary font-bold hover:underline shrink-0 text-[11px] ml-2"
                 >
                   Retry
                 </button>
@@ -693,6 +785,46 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         isDanger={true}
         onSuccess={handleExecuteReset}
       />
+
+      {/* LIVE RESTART CONFIRMATION POPUP */}
+      <Modal
+        isOpen={isRestartModalOpen}
+        onClose={() => setIsRestartModalOpen(false)}
+        title="Apply Live Update"
+        maxWidth="sm"
+      >
+        <div className="text-center py-4 space-y-4">
+          <div className="w-16 h-16 mx-auto rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-lg animate-bounce">
+            <Sparkles size={32} />
+          </div>
+          <div className="space-y-1.5">
+            <h3 className="font-display font-extrabold text-lg text-ink">
+              Update Downloaded Successfully! 🎉
+            </h3>
+            <p className="text-xs text-mute max-w-xs mx-auto leading-relaxed">
+              All new features and enhancements have been downloaded. Restart the application now to launch the updated version.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 pt-2">
+            <Button
+              variant="primary"
+              size="md"
+              onClick={handleRestartNow}
+              className="w-full font-bold shadow-md gap-2"
+            >
+              <RotateCcw size={16} /> Restart Application Now
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsRestartModalOpen(false)}
+              className="w-full text-xs text-mute"
+            >
+              Apply on Next App Launch
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 };

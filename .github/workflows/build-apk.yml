@@ -35,6 +35,11 @@ jobs:
       - name: Build Web Production Assets
         run: npm run build
 
+      - name: Package Live OTA Web Bundle
+        run: |
+          cd dist && zip -r ../bundle.zip . && cd ..
+          ls -lh bundle.zip
+
       - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
@@ -86,5 +91,6 @@ jobs:
           prerelease: false
           files: |
             android/app/build/outputs/apk/debug/HabitSeen.apk
+            bundle.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

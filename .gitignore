@@ -33,6 +33,8 @@ android/app/*.iml
 # APKs, Bundles, Keystores & Signing Keys
 *.apk
 *.aab
+*.zip
+bundle.zip
 *.jks
 *.keystore
 *.dex

@@ -9,8 +9,24 @@ export interface AppReleaseInfo {
   hasUpdate: boolean;
 }
 
+import { CapacitorUpdater } from '@capgo/capacitor-updater';
+import { Capacitor } from '@capacitor/core';
+
+// Service to check and trigger GitHub Live Updates (OTA) & Releases for HabitSeen
+
+export interface AppReleaseInfo {
+  version: string;
+  name: string;
+  notes: string;
+  bundleUrl?: string; // Direct OTA bundle zip URL (for live update without installing APK)
+  apkDownloadUrl?: string; // Fallback direct APK link
+  publishedAt: string;
+  hasUpdate: boolean;
+  isLiveUpdate?: boolean; // True if OTA live update bundle is available
+}
+
 export const CURRENT_APP_VERSION = '1.0.0';
-export const CURRENT_BUILD_COMMIT = '0a9ae4e'; // Previous build commit SHA
+export const CURRENT_BUILD_COMMIT = 'cff2d8f'; // Latest build commit SHA
 export const GITHUB_REPO = 'kumardevanshu7/Habits-Seen-Mob';
 
 /**
@@ -38,11 +54,11 @@ export function compareVersions(v1: string, v2: string): number {
 }
 
 /**
- * Checks GitHub Releases & Commits for the latest HabitSeen APK updates
+ * Checks GitHub Releases & Commits for the latest HabitSeen Live Updates and APKs
  */
 export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
   try {
-    // 1. Check official GitHub Releases first for compiled APK assets
+    // 1. Check official GitHub Releases first for compiled assets
     let latestRelease: any = null;
     try {
       const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
@@ -59,6 +75,17 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
 
     if (latestRelease) {
       const latestTag = (latestRelease.tag_name || '').replace(/^v/i, '').trim();
+      
+      // Look for bundle.zip (live OTA update)
+      const bundleAsset = Array.isArray(latestRelease.assets)
+        ? latestRelease.assets.find(
+            (a: { name?: string }) =>
+              a.name?.toLowerCase() === 'bundle.zip' ||
+              a.name?.toLowerCase().endsWith('.zip')
+          )
+        : undefined;
+
+      // Look for HabitSeen.apk (full installer)
       const apkAsset = Array.isArray(latestRelease.assets)
         ? latestRelease.assets.find(
             (a: { name?: string; content_type?: string }) =>
@@ -68,14 +95,16 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
         : undefined;
 
       const isNewerTag = compareVersions(latestTag, CURRENT_APP_VERSION) > 0 || latestTag.includes('-');
-      if (isNewerTag || apkAsset) {
+      if (isNewerTag || bundleAsset || apkAsset) {
         return {
           version: latestTag || CURRENT_APP_VERSION,
           name: latestRelease.name || `HabitSeen v${latestTag}`,
           notes: latestRelease.body || 'Includes new features, UI enhancements, and stability improvements.',
+          bundleUrl: bundleAsset?.browser_download_url,
           apkDownloadUrl: apkAsset?.browser_download_url || latestRelease.html_url,
           publishedAt: latestRelease.published_at || new Date().toISOString(),
           hasUpdate: true,
+          isLiveUpdate: Boolean(bundleAsset),
         };
       }
     }
@@ -99,10 +128,11 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
           return {
             version: `${CURRENT_APP_VERSION}-${shortSha}`,
             name: `GitHub Update Available (${shortSha})`,
-            notes: `New code update pushed to repository:\n"${commitMsg}"\n\nGitHub Actions is building the updated APK package or you can download directly from GitHub Releases.`,
+            notes: `New code update pushed to repository:\n"${commitMsg}"\n\nGitHub Actions is building the live update bundle and APK.`,
             apkDownloadUrl: `https://github.com/${GITHUB_REPO}/releases`,
             publishedAt: commitDate,
             hasUpdate: true,
+            isLiveUpdate: false,
           };
         }
       }
@@ -115,9 +145,86 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
       notes: 'Your app is fully synchronized with the latest GitHub code and releases.',
       hasUpdate: false,
       publishedAt: new Date().toISOString(),
+      isLiveUpdate: false,
     };
   } catch (error) {
     console.error('Failed to check for updates:', error);
     throw error;
   }
 }
+
+/**
+ * Downloads and applies a Live OTA Update bundle without installing an APK.
+ * Reports download progress via onProgress callback (0-100).
+ */
+export async function downloadLiveUpdate(
+  bundleUrl: string,
+  version: string,
+  onProgress?: (percent: number) => void
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // If running in browser (non-native), simulate progress for testing
+    if (!Capacitor.isNativePlatform()) {
+      for (let p = 10; p <= 100; p += 15) {
+        onProgress?.(p);
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      return { success: true };
+    }
+
+    if (!bundleUrl || !bundleUrl.toLowerCase().endsWith('.zip')) {
+      return {
+        success: false,
+        error: 'Live update bundle (.zip) is not yet available in the latest release.',
+      };
+    }
+
+    let downloadListener: any = null;
+    if (onProgress) {
+      try {
+        downloadListener = await CapacitorUpdater.addListener('download', (event: any) => {
+          if (typeof event?.percent === 'number') {
+            onProgress(Math.min(100, Math.max(0, Math.round(event.percent))));
+          }
+        });
+      } catch (e) {
+        console.warn('Could not register download listener:', e);
+      }
+    }
+
+    // Download the bundle from GitHub Releases
+    const bundle = await CapacitorUpdater.download({
+      url: bundleUrl,
+      version: version || 'latest',
+    });
+
+    // Set bundle as active
+    await CapacitorUpdater.set({ id: bundle.id });
+
+    if (downloadListener && typeof downloadListener.remove === 'function') {
+      downloadListener.remove();
+    }
+
+    onProgress?.(100);
+    return { success: true };
+  } catch (err: any) {
+    console.error('Failed to download live update bundle:', err);
+    return { success: false, error: err?.message || 'Download failed' };
+  }
+}
+
+/**
+ * Restarts the application to apply the downloaded Live Update.
+ */
+export async function restartApp(): Promise<void> {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      await CapacitorUpdater.reload();
+    } else {
+      window.location.reload();
+    }
+  } catch {
+    window.location.reload();
+  }
+}
+

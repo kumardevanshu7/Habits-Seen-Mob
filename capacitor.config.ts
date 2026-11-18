@@ -11,6 +11,10 @@ const config: CapacitorConfig = {
       clientId: '408400447866-eo3fhd2eefmbbmonkv1vl89c5c1nhg9a.apps.googleusercontent.com',
       forceCodeForRefreshToken: true,
     },
+    CapacitorUpdater: {
+      autoUpdate: false,
+      resetWhenUpdate: false,
+    },
   },
 };
 

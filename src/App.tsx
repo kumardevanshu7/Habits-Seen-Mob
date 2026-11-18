@@ -30,6 +30,7 @@ import { MotivationalReelsModal } from './components/reels/MotivationalReelsModa
 import { BrandLegalModal, BrandLegalTab } from './components/brand/BrandLegalModal';
 import { isModalHandlingPopState, closeTopModal } from './components/ui/Modal';
 import { App as CapacitorApp } from '@capacitor/app';
+import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { Button } from './components/ui/Button';
 import { AlertCircle, RefreshCw, WifiOff } from 'lucide-react';
@@ -122,6 +123,13 @@ export const App: React.FC = () => {
         ''
       );
     }
+  }, []);
+
+  // Inform Capacitor Live Updater that bundle loaded successfully
+  useEffect(() => {
+    try {
+      CapacitorUpdater.notifyAppReady();
+    } catch {}
   }, []);
 
   // Global mobile back-gesture (popstate) listener
