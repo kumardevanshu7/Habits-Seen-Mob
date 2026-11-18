@@ -57,7 +57,7 @@ jobs:
           fi
 
       - name: Sync Capacitor Android
-        run: npx cap sync android
+        run: npx @capacitor/cli sync android
 
       - name: Grant Execute Permission to Gradle
         run: chmod +x android/gradlew
@@ -97,6 +97,7 @@ jobs:
             Download the attached `HabitSeen.apk` below to update your device.
           draft: false
           prerelease: false
+          make_latest: true
           files: |
             android/app/build/outputs/apk/debug/HabitSeen.apk
             bundle.zip
