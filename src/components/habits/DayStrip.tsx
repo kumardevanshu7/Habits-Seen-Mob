@@ -37,6 +37,70 @@ export const DayStrip: React.FC = () => {
   // Filter out archived habits
   const activeHabits = habits.filter((h) => !h.isArchived);
 
+  // Smooth / Immediate helper to align date in visible strip
+  const scrollToDateKey = (
+    targetDateKey: string,
+    behavior: ScrollBehavior = 'auto',
+    forceStart: boolean = false
+  ) => {
+    if (!dayStripRef.current) return;
+    const container = dayStripRef.current;
+    const targetEl = container.querySelector<HTMLElement>(`[data-date-key="${targetDateKey}"]`);
+    if (!targetEl) return;
+
+    const containerLeft = container.scrollLeft;
+    const containerRight = containerLeft + container.clientWidth;
+    const elLeft = targetEl.offsetLeft - container.offsetLeft;
+    const elRight = elLeft + targetEl.offsetWidth;
+
+    if (forceStart) {
+      container.scrollTo({
+        left: Math.max(0, elLeft - 4),
+        behavior,
+      });
+    } else {
+      const isVisible = elLeft >= containerLeft + 8 && elRight <= containerRight - 8;
+      if (!isVisible) {
+        if (elLeft < containerLeft) {
+          container.scrollTo({ left: Math.max(0, elLeft - 4), behavior });
+        } else {
+          container.scrollTo({ left: Math.max(0, elRight - container.clientWidth + 4), behavior });
+        }
+      }
+    }
+  };
+
+  // 1. Initial Mount: Ensure active date (Today / selectedDate) is immediately visible at the front
+  useEffect(() => {
+    const target = selectedDate || todayKey;
+    scrollToDateKey(target, 'auto', true);
+
+    const rafId = requestAnimationFrame(() => {
+      scrollToDateKey(target, 'auto', true);
+    });
+
+    const t1 = setTimeout(() => scrollToDateKey(target, 'auto', true), 60);
+    const t2 = setTimeout(() => scrollToDateKey(target, 'auto', true), 180);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, []);
+
+  // 2. Visibility change: When user returns to app from background, align current date
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        const target = selectedDate || todayKey;
+        scrollToDateKey(target, 'auto', true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [selectedDate, todayKey]);
+
   // Center anchor only when selectedDate explicitly changes to a date outside the current window
   const prevSelectedDateRef = useRef(selectedDate);
   useEffect(() => {
@@ -48,29 +112,39 @@ export const DayStrip: React.FC = () => {
       if (diff > 7) {
         setAnchorDate(parsed);
       }
+      scrollToDateKey(selectedDate, 'smooth', false);
     } catch {
       // Ignore invalid date parsing
     }
   }, [selectedDate, anchorDate]);
 
-  // Generate 15 continuous days (-7 to +7 days around anchor date)
-  const days = Array.from({ length: 15 }, (_, i) => addDays(anchorDate, i - 7));
+  // Generate 22 continuous days (-7 to +14 days around anchor date)
+  const days = Array.from({ length: 22 }, (_, i) => addDays(anchorDate, i - 7));
 
   // Current active month & year label
   const monthYearLabel = format(anchorDate, 'MMMM yyyy');
 
   const handlePrevWeek = () => {
-    setAnchorDate((prev) => subDays(prev, 7));
+    const newAnchor = subDays(anchorDate, 7);
+    setAnchorDate(newAnchor);
+    const newDateKey = format(newAnchor, 'yyyy-MM-dd');
+    setSelectedDate(newDateKey);
+    setTimeout(() => scrollToDateKey(newDateKey, 'smooth', true), 40);
   };
 
   const handleNextWeek = () => {
-    setAnchorDate((prev) => addDays(prev, 7));
+    const newAnchor = addDays(anchorDate, 7);
+    setAnchorDate(newAnchor);
+    const newDateKey = format(newAnchor, 'yyyy-MM-dd');
+    setSelectedDate(newDateKey);
+    setTimeout(() => scrollToDateKey(newDateKey, 'smooth', true), 40);
   };
 
   const handleTodayClick = () => {
     const today = parseISO(todayKey);
     setAnchorDate(today);
     setSelectedDate(todayKey);
+    setTimeout(() => scrollToDateKey(todayKey, 'smooth', true), 40);
   };
 
   const openMonthModal = () => {
@@ -203,6 +277,7 @@ export const DayStrip: React.FC = () => {
           return (
             <button
               key={key}
+              data-date-key={key}
               type="button"
               onClick={() => setSelectedDate(key)}
               title={`${format(day, 'EEEE, d MMM yyyy')}: ${totalCompleted}/${totalDue} completed (${completionPercentage}%)`}
