@@ -1,24 +1,14 @@
-// Service to check and trigger GitHub In-App Updates for HabitSeen
-
-export interface AppReleaseInfo {
-  version: string;
-  name: string;
-  notes: string;
-  apkDownloadUrl?: string;
-  publishedAt: string;
-  hasUpdate: boolean;
-}
+// Service to check and trigger GitHub Live Updates (OTA) & Releases for HabitSeen
 
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { Capacitor } from '@capacitor/core';
-
-// Service to check and trigger GitHub Live Updates (OTA) & Releases for HabitSeen
 
 export interface AppReleaseInfo {
   version: string;
   name: string;
   notes: string;
   bundleUrl?: string; // Direct OTA bundle zip URL (for live update without installing APK)
+  checksum?: string; // SHA-256 checksum of bundle.zip required by CapgoUpdater
   apkDownloadUrl?: string; // Fallback direct APK link
   publishedAt: string;
   hasUpdate: boolean;
@@ -167,6 +157,16 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
           )
         : undefined;
 
+      // Extract sha256 checksum from asset digest (GitHub API provides sha256:...) or release body
+      const rawDigest: string = (bundleAsset as any)?.digest || '';
+      let bundleChecksum = rawDigest ? rawDigest.replace(/^sha256:/i, '').trim().toLowerCase() : '';
+      if (!bundleChecksum && latestRelease.body) {
+        const match = latestRelease.body.match(/Checksum[\*:`\s]+([a-f0-9]{64})/i);
+        if (match) {
+          bundleChecksum = match[1].trim().toLowerCase();
+        }
+      }
+
       // Look for HabitSeen.apk (full installer)
       const apkAsset = Array.isArray(latestRelease.assets)
         ? latestRelease.assets.find(
@@ -184,6 +184,7 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
           name: latestRelease.name || `HabitSeen v${latestTag}`,
           notes: latestRelease.body || 'Includes new features, UI enhancements, and stability improvements.',
           bundleUrl: bundleAsset?.browser_download_url,
+          checksum: bundleChecksum || undefined,
           apkDownloadUrl: apkAsset?.browser_download_url || latestRelease.html_url,
           publishedAt: latestRelease.published_at || new Date().toISOString(),
           hasUpdate: true,
@@ -242,6 +243,7 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
 export async function downloadLiveUpdate(
   bundleUrl: string,
   version: string,
+  checksum?: string,
   onProgress?: (percent: number) => void
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -274,14 +276,15 @@ export async function downloadLiveUpdate(
       }
     }
 
-    // Download the bundle from GitHub Releases
+    // Download the bundle from GitHub Releases with mandatory checksum
     const bundle = await CapacitorUpdater.download({
       url: bundleUrl,
       version: version || 'latest',
+      checksum: checksum || '',
     });
 
-    // Set bundle as active
-    await CapacitorUpdater.set({ id: bundle.id });
+    // Stage bundle to be activated cleanly upon next restart
+    await CapacitorUpdater.next({ id: bundle.id });
 
     if (downloadListener && typeof downloadListener.remove === 'function') {
       downloadListener.remove();

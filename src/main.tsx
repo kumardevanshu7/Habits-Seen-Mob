@@ -3,6 +3,15 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 import { registerSW } from 'virtual:pwa-register';
+import { Capacitor } from '@capacitor/core';
+import { CapacitorUpdater } from '@capgo/capacitor-updater';
+
+// Inform CapacitorUpdater that the app loaded successfully so live OTA bundles are committed
+if (Capacitor.isNativePlatform()) {
+  CapacitorUpdater.notifyAppReady().catch((e) => {
+    console.warn('CapacitorUpdater notifyAppReady error:', e);
+  });
+}
 
 // Register PWA service worker with auto-update and automatic refresh when new build is detected
 const updateSW = registerSW({

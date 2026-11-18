@@ -126,6 +126,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     const res = await downloadLiveUpdate(
       updateInfo.bundleUrl,
       updateInfo.version,
+      updateInfo.checksum,
       (percent) => {
         setDownloadProgress(percent);
       }
@@ -745,12 +746,35 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               </div>
             )}
 
-            {/* STATUS: ALREADY UP TO DATE */}
+            {/* STATUS: ALREADY UP TO DATE OR CLOUD BUILDING */}
             {updateStatus === 'latest' && (
-              <div className="p-2.5 bg-zinc-100 border border-zinc-200 rounded-xl flex items-center gap-2 text-xs text-zinc-700 animate-in fade-in duration-300">
-                <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
-                <span>You're on the latest build (v{CURRENT_APP_VERSION})! All up to date.</span>
-              </div>
+              updateInfo?.notes?.includes('GitHub Actions is currently compiling') ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2 animate-in fade-in duration-300">
+                  <div className="flex items-start gap-2 text-xs text-amber-900">
+                    <RefreshCw size={14} className="text-amber-600 animate-spin shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="block font-bold">New update compiling in Cloud...</strong>
+                      <p className="text-[11px] text-amber-800 leading-relaxed mt-0.5">
+                        {updateInfo.notes}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCheckForUpdates}
+                    className="w-full text-xs font-bold gap-1.5 h-8 justify-center cursor-pointer"
+                  >
+                    <RefreshCw size={12} /> Refresh Cloud Build Status
+                  </Button>
+                </div>
+              ) : (
+                <div className="p-2.5 bg-zinc-100 border border-zinc-200 rounded-xl flex items-center gap-2 text-xs text-zinc-700 animate-in fade-in duration-300">
+                  <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                  <span>You're on the latest build (v{CURRENT_APP_VERSION})! All up to date.</span>
+                </div>
+              )
             )}
 
             {/* STATUS: ERROR */}
