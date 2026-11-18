@@ -2,9 +2,20 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
+import { execSync } from 'child_process'
+
+let gitCommitSha = '1.0.0'
+try {
+  gitCommitSha = execSync('git rev-parse --short HEAD').toString().trim()
+} catch {
+  gitCommitSha = '1.0.0'
+}
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_COMMIT_SHA': JSON.stringify(gitCommitSha),
+  },
   plugins: [
     react(),
     VitePWA({

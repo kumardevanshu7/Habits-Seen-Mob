@@ -108,12 +108,22 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
   const handleStartLiveDownload = async () => {
     if (!updateInfo) return;
+
+    if (!updateInfo.bundleUrl) {
+      if (updateInfo.apkDownloadUrl) {
+        window.open(updateInfo.apkDownloadUrl, '_system');
+      } else {
+        window.open(`https://github.com/${GITHUB_REPO}/releases`, '_system');
+      }
+      return;
+    }
+
     setUpdateStatus('downloading');
     setDownloadProgress(0);
+    setUpdateError(null);
 
-    const targetUrl = updateInfo.bundleUrl || updateInfo.apkDownloadUrl || '';
     const res = await downloadLiveUpdate(
-      targetUrl,
+      updateInfo.bundleUrl,
       updateInfo.version,
       (percent) => {
         setDownloadProgress(percent);
@@ -613,19 +623,38 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   </p>
                 )}
 
-                {/* PRIMARY ACTION: LIVE OTA UPDATE (NO MANUAL APK INSTALLATION REQUIRED) */}
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={handleStartLiveDownload}
-                  className="w-full gap-2 font-bold shadow-xs cursor-pointer"
-                >
-                  <Zap size={14} className="fill-current" /> Download & Apply Live Update (OTA)
-                </Button>
+                {updateError && (
+                  <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs text-amber-800">
+                    <AlertTriangle size={15} className="text-amber-600 shrink-0" />
+                    <span>{updateError}</span>
+                  </div>
+                )}
+
+                {/* PRIMARY ACTION */}
+                {updateInfo.bundleUrl ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={handleStartLiveDownload}
+                    className="w-full gap-2 font-bold shadow-xs cursor-pointer"
+                  >
+                    <Zap size={14} className="fill-current" /> Download & Apply Live Update (OTA)
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={handleDownloadFullApk}
+                    className="w-full gap-2 font-bold shadow-xs cursor-pointer"
+                  >
+                    <Download size={14} /> Download APK from GitHub Releases
+                  </Button>
+                )}
 
                 {/* OPTIONAL FULL APK DOWNLOAD FALLBACK */}
-                {updateInfo.apkDownloadUrl && (
+                {updateInfo.bundleUrl && updateInfo.apkDownloadUrl && (
                   <button
                     type="button"
                     onClick={handleDownloadFullApk}

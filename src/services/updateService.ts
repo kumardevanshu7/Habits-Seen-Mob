@@ -26,8 +26,43 @@ export interface AppReleaseInfo {
 }
 
 export const CURRENT_APP_VERSION = '1.0.0';
-export const CURRENT_BUILD_COMMIT = 'cff2d8f'; // Latest build commit SHA
+export const CURRENT_BUILD_COMMIT =
+  ((import.meta as any).env?.VITE_COMMIT_SHA as string) || '1ea0fa4'; // Injected build commit SHA
 export const GITHUB_REPO = 'kumardevanshu7/Habits-Seen-Mob';
+
+/**
+ * Checks if a release tag represents a newer version than currently installed
+ */
+export function isReleaseNewer(
+  releaseTag: string,
+  currentVersion: string,
+  currentCommit: string
+): boolean {
+  const cleanTag = releaseTag.replace(/^v/i, '').trim();
+  const cleanCurrent = currentVersion.replace(/^v/i, '').trim();
+
+  // If the release tag directly contains or matches the current build commit, it's the exact same build
+  if (currentCommit && cleanTag.toLowerCase().includes(currentCommit.toLowerCase())) {
+    return false;
+  }
+
+  // Check semantic version difference (e.g. "1.1.0" vs "1.0.0")
+  const tagBase = cleanTag.split('-')[0];
+  const currentBase = cleanCurrent.split('-')[0];
+  const semverComp = compareVersions(tagBase, currentBase);
+
+  if (semverComp > 0) return true;
+  if (semverComp < 0) return false;
+
+  // If base versions are equal (e.g. 1.0.0 vs 1.0.0):
+  // If the release has a commit suffix and it's different from our current commit, it's newer
+  const tagCommit = cleanTag.includes('-') ? cleanTag.split('-').slice(1).join('-') : '';
+  if (tagCommit && currentCommit && tagCommit.toLowerCase() !== currentCommit.toLowerCase()) {
+    return true;
+  }
+
+  return false;
+}
 
 /**
  * Compares two semantic version strings (e.g. "1.0.1" vs "1.0.0")
@@ -75,7 +110,7 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
 
     if (latestRelease) {
       const latestTag = (latestRelease.tag_name || '').replace(/^v/i, '').trim();
-      
+
       // Look for bundle.zip (live OTA update)
       const bundleAsset = Array.isArray(latestRelease.assets)
         ? latestRelease.assets.find(
@@ -94,8 +129,9 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
           )
         : undefined;
 
-      const isNewerTag = compareVersions(latestTag, CURRENT_APP_VERSION) > 0 || latestTag.includes('-');
-      if (isNewerTag || bundleAsset || apkAsset) {
+      const hasNewerVersion = isReleaseNewer(latestTag, CURRENT_APP_VERSION, CURRENT_BUILD_COMMIT);
+
+      if (hasNewerVersion) {
         return {
           version: latestTag || CURRENT_APP_VERSION,
           name: latestRelease.name || `HabitSeen v${latestTag}`,
@@ -124,7 +160,7 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
         const commitMsg = latestCommit.commit?.message?.split('\n')[0] || 'Latest updates pushed to GitHub';
         const commitDate = latestCommit.commit?.author?.date || new Date().toISOString();
 
-        if (shortSha && shortSha !== CURRENT_BUILD_COMMIT) {
+        if (shortSha && shortSha.toLowerCase() !== CURRENT_BUILD_COMMIT.toLowerCase()) {
           return {
             version: `${CURRENT_APP_VERSION}-${shortSha}`,
             name: `GitHub Update Available (${shortSha})`,

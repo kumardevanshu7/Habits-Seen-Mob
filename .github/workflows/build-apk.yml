@@ -30,7 +30,7 @@ jobs:
           cache: 'npm'
 
       - name: Install Node Dependencies
-        run: npm ci || npm install
+        run: npm install --legacy-peer-deps
 
       - name: Build Web Production Assets
         run: npm run build
@@ -79,6 +79,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.vars.outputs.tag_name }}
+          target_commitish: ${{ github.sha }}
           name: HabitSeen ${{ steps.vars.outputs.tag_name }}
           body: |
             ### 🚀 HabitSeen Automatic Cloud Build
