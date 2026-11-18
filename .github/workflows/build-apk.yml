@@ -83,18 +83,19 @@ jobs:
 
       - name: Verify and Prepare Generated APK
         run: |
-          ls -la android/app/build/outputs/apk/debug/ || true
-          if [ -f "android/app/build/outputs/apk/debug/HabitSeen.apk" ]; then
-            echo "HabitSeen.apk found directly."
-          elif [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
-            echo "Renaming app-debug.apk to HabitSeen.apk"
-            cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/HabitSeen.apk
-          else
-            APK_FOUND=$(find android/app/build/outputs/apk -name "*.apk" | head -n 1)
-            echo "Found APK at: $APK_FOUND"
-            cp "$APK_FOUND" android/app/build/outputs/apk/debug/HabitSeen.apk
+          echo "### 🔍 APK Search Output" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          find android -name "*.apk" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
+          APK_PATH=$(find android -name "*.apk" | head -n 1)
+          echo "Found APK at: $APK_PATH"
+          if [ -z "$APK_PATH" ]; then
+            echo "No APK was produced by Gradle!"
+            exit 1
           fi
-          test -f android/app/build/outputs/apk/debug/HabitSeen.apk
+          mkdir -p android/app/build/outputs/apk/debug
+          cp "$APK_PATH" android/app/build/outputs/apk/debug/HabitSeen.apk
           ls -lh android/app/build/outputs/apk/debug/HabitSeen.apk
 
       - name: Extract Commit Info
