@@ -49,7 +49,24 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           <Home size={19} strokeWidth={activeTab === 'habits' ? 2.5 : 2} />
         </button>
 
-        {/* 2. Challenges / Calendar */}
+        {/* 2. Just Tracking (Dedicated Page) */}
+        <button
+          type="button"
+          aria-label="Just Tracking View"
+          aria-current={activeTab === 'tracking' ? 'page' : undefined}
+          onClick={() => onSelectTab('tracking')}
+          className={clsx(
+            'p-2.5 rounded-xl transition-all duration-200 flex items-center justify-center cursor-pointer',
+            activeTab === 'tracking'
+              ? 'bg-white text-black shadow-md scale-105'
+              : 'text-zinc-400 hover:text-white hover:bg-white/10'
+          )}
+          title="Just Tracking"
+        >
+          <Sparkles size={19} strokeWidth={activeTab === 'tracking' ? 2.5 : 2} />
+        </button>
+
+        {/* 3. Challenges / Calendar */}
         <button
           type="button"
           aria-label="Challenges View"
@@ -66,37 +83,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           <Calendar size={19} strokeWidth={activeTab === 'challenges' ? 2.5 : 2} />
         </button>
 
-        {/* 3. Analytics / Charts */}
-        <button
-          type="button"
-          aria-label="Analytics View"
-          aria-current={activeTab === 'analytics' ? 'page' : undefined}
-          onClick={() => onSelectTab('analytics')}
-          className={clsx(
-            'p-2.5 rounded-xl transition-all duration-200 flex items-center justify-center cursor-pointer',
-            activeTab === 'analytics'
-              ? 'bg-white text-black shadow-md scale-105'
-              : 'text-zinc-400 hover:text-white hover:bg-white/10'
-          )}
-          title="Analytics"
-        >
-          <BarChart2 size={19} strokeWidth={activeTab === 'analytics' ? 2.5 : 2} />
-        </button>
-
-        {/* 4. Profile */}
-        <button
-          type="button"
-          aria-label="User Profile"
-          onClick={handleOpenProfile}
-          className={clsx(
-            'p-2.5 rounded-xl transition-all duration-200 flex items-center justify-center cursor-pointer text-zinc-400 hover:text-white hover:bg-white/10'
-          )}
-          title="Profile"
-        >
-          <User size={19} strokeWidth={2} />
-        </button>
-
-        {/* 5. Quit Breaks / Shield */}
+        {/* 4. Quit Breaks / Shield */}
         <button
           type="button"
           aria-label="Timer Habit Break Hub"
@@ -111,6 +98,23 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           title="Quit Breaks"
         >
           <ShieldAlert size={19} strokeWidth={activeTab === 'breaks' ? 2.5 : 2} />
+        </button>
+
+        {/* 5. Analytics / Charts */}
+        <button
+          type="button"
+          aria-label="Analytics View"
+          aria-current={activeTab === 'analytics' ? 'page' : undefined}
+          onClick={() => onSelectTab('analytics')}
+          className={clsx(
+            'p-2.5 rounded-xl transition-all duration-200 flex items-center justify-center cursor-pointer',
+            activeTab === 'analytics'
+              ? 'bg-white text-black shadow-md scale-105'
+              : 'text-zinc-400 hover:text-white hover:bg-white/10'
+          )}
+          title="Analytics"
+        >
+          <BarChart2 size={19} strokeWidth={activeTab === 'analytics' ? 2.5 : 2} />
         </button>
 
         {/* DIVIDER */}

@@ -523,6 +523,7 @@ export const App: React.FC = () => {
         <ErrorBoundary fallbackTitle="An error occurred rendering this section">
           {(activeTab === 'habits' || activeTab === 'tracking') && (
             <HabitsView
+              isJustTrackingOnly={activeTab === 'tracking'}
               selectedCategory={activeTab === 'tracking' ? 'cat-just-tracking' : selectedCategory}
               onSelectCategory={(cat) => {
                 if (activeTab === 'tracking') {
@@ -531,6 +532,7 @@ export const App: React.FC = () => {
                 handleSelectCategory(cat);
               }}
               onOpenChallengesTab={() => handleSelectTab('challenges')}
+              onOpenReels={() => setIsReelsOpen(true)}
               onOpenCreateHabit={() => {
                 setEditingHabit(null);
                 setCreateHabitInitialFrequency(activeTab === 'tracking' ? 'JUST_TRACKING' : undefined);

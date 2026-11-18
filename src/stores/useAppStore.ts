@@ -101,6 +101,7 @@ interface AppState {
   // Habits
   habits: Habit[];
   setHabits: (habits: Habit[]) => void;
+  reorderHabits: (ordered: Habit[]) => Promise<void>;
   addHabit: (habit: Omit<Habit, 'id' | 'createdAt' | 'updatedAt' | 'stats'>) => Promise<Habit>;
   updateHabit: (habit: Habit) => Promise<void>;
   toggleArchiveHabit: (id: string, isArchived?: boolean) => Promise<void>;
@@ -561,6 +562,24 @@ export const useAppStore = create<AppState>()((set, get) => ({
     set((s) => ({
       habits: s.habits.map((h) => (h.id === updated.id ? updated : h)),
     }));
+  },
+
+  reorderHabits: async (orderedList) => {
+    const { currentUser, habits } = get();
+    const orderMap = new Map(orderedList.map((h, idx) => [h.id, idx]));
+    const updated = habits.map((h) => {
+      const newOrder = orderMap.get(h.id);
+      return typeof newOrder === 'number' ? { ...h, order: newOrder } : h;
+    });
+    set({ habits: updated });
+    if (currentUser) {
+      for (const h of orderedList) {
+        const idx = orderMap.get(h.id);
+        if (typeof idx === 'number') {
+          await updateHabitInDb(currentUser.uid, { ...h, order: idx });
+        }
+      }
+    }
   },
 
   toggleArchiveHabit: async (id, forceArchived) => {

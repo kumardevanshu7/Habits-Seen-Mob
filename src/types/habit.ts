@@ -90,6 +90,7 @@ export interface Habit {
   schedule: HabitSchedule;
   stats: HabitStats;
   isArchived?: boolean;
+  order?: number;
   createdAt: string;
   updatedAt: string;
 }

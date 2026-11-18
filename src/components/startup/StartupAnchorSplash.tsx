@@ -37,10 +37,24 @@ export const StartupAnchorSplash: React.FC<StartupAnchorSplashProps> = ({
   onProceed,
   isReady = true,
 }) => {
-  const { user } = useAppStore();
+  const { user, profileLoading } = useAppStore();
   const [quoteIndex, setQuoteIndex] = useState(() => getDailyAnimeQuoteIndex());
   const [fadeQuote, setFadeQuote] = useState(false);
   const fadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cached anchor date to prevent flash of hardcoded date
+  const [cachedAnchorDate, setCachedAnchorDate] = useState<string | null>(() => {
+    return typeof window !== 'undefined' ? localStorage.getItem('habitseen_starting_point_date') : null;
+  });
+
+  useEffect(() => {
+    if (user?.startingPointDate) {
+      setCachedAnchorDate(user.startingPointDate);
+      try {
+        localStorage.setItem('habitseen_starting_point_date', user.startingPointDate);
+      } catch {}
+    }
+  }, [user?.startingPointDate]);
 
   useEffect(() => {
     return () => {
@@ -48,17 +62,23 @@ export const StartupAnchorSplash: React.FC<StartupAnchorSplashProps> = ({
     };
   }, []);
 
-  const anchorDateStr = user?.startingPointDate || STARTING_POINT_CONFIG.dateStr;
-  const daysCount = getDaysSinceStartingPoint(anchorDateStr);
+  const anchorDateStr = user?.startingPointDate || cachedAnchorDate;
+  const isDateLoading = !anchorDateStr && profileLoading;
+
+  const daysCount = anchorDateStr ? getDaysSinceStartingPoint(anchorDateStr) : 1;
   const currentQuote = ANIME_CONSISTENCY_QUOTES[quoteIndex] || ANIME_CONSISTENCY_QUOTES[0];
 
-  let displayDate = STARTING_POINT_CONFIG.displayDate;
-  try {
-    const parsed = parseISO(anchorDateStr);
-    if (isValid(parsed)) {
-      displayDate = format(parsed, 'do MMMM, yyyy');
+  let displayDate = '';
+  if (anchorDateStr) {
+    try {
+      const parsed = parseISO(anchorDateStr);
+      if (isValid(parsed)) {
+        displayDate = format(parsed, 'do MMMM, yyyy');
+      }
+    } catch {
+      displayDate = anchorDateStr;
     }
-  } catch {}
+  }
 
   const handleNextQuote = () => {
     setFadeQuote(true);
@@ -98,20 +118,28 @@ export const StartupAnchorSplash: React.FC<StartupAnchorSplashProps> = ({
         </div>
 
         {/* DATE HERO */}
-        <div className="space-y-2">
-          <h1 className="font-display font-extrabold text-3xl sm:text-4xl text-ink tracking-tight drop-shadow-xs">
-            {displayDate}
-          </h1>
-          <div className="flex items-center justify-center gap-2">
-            <span className="inline-flex items-center gap-1 font-mono font-bold text-xs sm:text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 px-3.5 py-1 rounded-full shadow-2xs">
-              <Flame size={14} className="fill-current text-emerald-600" />
-              Day {daysCount} of Lifelong Consistency
-            </span>
+        {isDateLoading ? (
+          <div className="space-y-3 py-2 animate-pulse w-full max-w-xs mx-auto">
+            <div className="h-9 w-60 bg-stone/20 rounded-2xl mx-auto" />
+            <div className="h-6 w-48 bg-stone/15 rounded-full mx-auto" />
+            <div className="h-3 w-64 bg-stone/10 rounded-lg mx-auto" />
           </div>
-          <p className="text-xs text-charcoal font-medium italic pt-1">
-            "Ab dobara restart nahi karna — ye hamara permanent starting point hai."
-          </p>
-        </div>
+        ) : (
+          <div className="space-y-2">
+            <h1 className="font-display font-extrabold text-3xl sm:text-4xl text-ink tracking-tight drop-shadow-xs">
+              {displayDate || 'Day 1'}
+            </h1>
+            <div className="flex items-center justify-center gap-2">
+              <span className="inline-flex items-center gap-1 font-mono font-bold text-xs sm:text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 px-3.5 py-1 rounded-full shadow-2xs">
+                <Flame size={14} className="fill-current text-emerald-600" />
+                Day {daysCount} of Lifelong Consistency
+              </span>
+            </div>
+            <p className="text-xs text-charcoal font-medium italic pt-1">
+              "Never restart from zero again — this is your permanent foundation."
+            </p>
+          </div>
+        )}
 
         {/* ANIME QUOTE CARD */}
         <div className="w-full bg-surface-card border border-hairline rounded-3xl p-5 sm:p-6 shadow-sm text-left relative overflow-hidden group">
@@ -149,12 +177,6 @@ export const StartupAnchorSplash: React.FC<StartupAnchorSplashProps> = ({
             <p className="font-display text-sm sm:text-base font-semibold text-ink leading-relaxed">
               "{currentQuote.quote}"
             </p>
-
-            {currentQuote.translation && (
-              <p className="text-xs text-charcoal mt-2 italic font-normal leading-normal">
-                ↳ {currentQuote.translation}
-              </p>
-            )}
 
             <div className="mt-3.5 pt-2.5 border-t border-hairline/40 flex items-center justify-between">
               <span className="font-bold text-xs text-ink">

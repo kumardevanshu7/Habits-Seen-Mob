@@ -502,7 +502,7 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
             >
               <span
                 className={clsx(
-                  'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold',
+                  'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0',
                   wizardStep === 1 ? 'bg-white/20 text-white' : 'bg-stone/30 text-charcoal'
                 )}
               >
@@ -515,7 +515,7 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
               type="button"
               onClick={() => setWizardStep(2)}
               className={clsx(
-                'flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-2',
+                'flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5 truncate',
                 wizardStep === 2
                   ? 'bg-ink text-white shadow-xs'
                   : 'text-charcoal hover:text-ink'
@@ -523,13 +523,13 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
             >
               <span
                 className={clsx(
-                  'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold',
+                  'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0',
                   wizardStep === 2 ? 'bg-white/20 text-white' : 'bg-stone/30 text-charcoal'
                 )}
               >
                 2
               </span>
-              <span>Habit & Target</span>
+              <span>Target</span>
             </button>
 
             <button
@@ -543,7 +543,7 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                 setWizardStep(3);
               }}
               className={clsx(
-                'flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-2',
+                'flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5 truncate',
                 wizardStep === 3
                   ? 'bg-ink text-white shadow-xs'
                   : 'text-charcoal hover:text-ink'
@@ -551,13 +551,13 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
             >
               <span
                 className={clsx(
-                  'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold',
+                  'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0',
                   wizardStep === 3 ? 'bg-white/20 text-white' : 'bg-stone/30 text-charcoal'
                 )}
               >
                 3
               </span>
-              <span>Schedule & Priority</span>
+              <span>Schedule</span>
             </button>
           </div>
 
@@ -1114,7 +1114,7 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                   onClick={() => setWizardStep(1)}
                   className="gap-1.5"
                 >
-                  <ArrowLeft size={14} /> Back to Category
+                  <ArrowLeft size={14} /> Back
                 </Button>
 
                 <Button
@@ -1129,7 +1129,7 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                   }}
                   className="gap-1.5"
                 >
-                  Next: Schedule & Priority <ArrowRight size={14} />
+                  Next <ArrowRight size={14} />
                 </Button>
               </div>
             </div>
@@ -1398,36 +1398,32 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                 </div>
               </div>
 
-              {/* Step 3 Action Buttons */}
-              <div className="flex items-center justify-between pt-3 border-t border-hairline">
+              {/* Step 3 Action Buttons (Pic 6 - Un-congested) */}
+              <div className="flex items-center justify-between pt-3 border-t border-hairline gap-2">
                 <Button
                   type="button"
                   variant="ghost"
                   onClick={() => setWizardStep(2)}
                   className="gap-1.5"
                 >
-                  <ArrowLeft size={14} /> Back to Target
+                  <ArrowLeft size={14} /> Back
                 </Button>
 
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="ghost" onClick={onClose}>
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    size="lg"
-                    disabled={isSubmitting}
-                  >
-                    {habitToEdit
-                      ? isSubmitting
-                        ? 'Saving Changes...'
-                        : 'Save Changes'
-                      : isSubmitting
-                      ? 'Saving to Cloud...'
-                      : 'Create Habit'}
-                  </Button>
-                </div>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="md"
+                  disabled={isSubmitting}
+                  className="px-5 shadow-xs"
+                >
+                  {habitToEdit
+                    ? isSubmitting
+                      ? 'Saving...'
+                      : 'Save Changes'
+                    : isSubmitting
+                    ? 'Creating...'
+                    : 'Create Habit'}
+                </Button>
               </div>
             </div>
           )}

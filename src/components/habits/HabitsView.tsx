@@ -46,6 +46,8 @@ interface HabitsViewProps {
   selectedCategory?: string;
   onSelectCategory?: (catId: string) => void;
   onOpenChallengesTab?: () => void;
+  onOpenReels?: () => void;
+  isJustTrackingOnly?: boolean;
 }
 
 export const HabitsView: React.FC<HabitsViewProps> = ({
@@ -55,6 +57,8 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
   selectedCategory,
   onSelectCategory,
   onOpenChallengesTab,
+  onOpenReels,
+  isJustTrackingOnly = false,
 }) => {
   const {
     habits,
@@ -64,6 +68,7 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
     selectedDate,
     setSelectedDate,
     reorderCategories,
+    reorderHabits,
     deleteCategory,
   } = useAppStore();
 
@@ -76,7 +81,20 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
     onSelectCategory?.(catId);
   };
 
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('habitseen_view_mode');
+      if (saved === 'grid' || saved === 'list') return saved;
+    }
+    return 'list'; // Default is Horizontal List per Pic 9
+  });
+
+  const handleSetViewMode = (mode: 'grid' | 'list') => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('habitseen_view_mode', mode);
+    } catch {}
+  };
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
   const [isReelsOpen, setIsReelsOpen] = useState(false);
@@ -151,6 +169,13 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
       if (aDone !== bDone) {
         return aDone - bDone;
       }
+      // Check custom manual drag order first
+      if (typeof a.order === 'number' && typeof b.order === 'number' && a.order !== b.order) {
+        return a.order - b.order;
+      }
+      if (typeof a.order === 'number') return -1;
+      if (typeof b.order === 'number') return 1;
+
       // Within the same completion status, sort by priority (100 = highest)
       const pA = typeof a?.schedule?.priority === 'number' ? a.schedule.priority : 50;
       const pB = typeof b?.schedule?.priority === 'number' ? b.schedule.priority : 50;
@@ -208,6 +233,10 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
   const [dragOrder, setDragOrder] = useState<Category[] | null>(null);
   const displayCategories = dragOrder || uniqueCategories;
 
+  // Category Touch Drag State (Pic 4)
+  const [touchDraggingCatId, setTouchDraggingCatId] = useState<string | null>(null);
+  const catDragHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleMoveCategory = async (catId: string, direction: 'left' | 'right') => {
     const index = uniqueCategories.findIndex((c) => c.id === catId);
     if (index === -1) return;
@@ -240,7 +269,6 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
     const [removed] = updated.splice(fromIndex, 1);
     updated.splice(toIndex, 0, removed);
 
-    // Update local UI draft immediately (zero Firestore write spam)
     setDragOrder(updated);
   };
 
@@ -252,29 +280,124 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
     setDraggedCatId(null);
   };
 
+  // Mobile Touch Drag for Category Pills (Pic 4)
   const handleCatTouchStart = (cat: Category, e: React.TouchEvent) => {
     isHoldingRef.current = false;
     const touch = e.touches[0];
     catTouchStartPos.current = { x: touch.clientX, y: touch.clientY };
-    if (catHoldTimerRef.current) clearTimeout(catHoldTimerRef.current);
-    catHoldTimerRef.current = setTimeout(() => {
-      isHoldingRef.current = true;
-      navigator.vibrate?.(40);
-      setCategoryForOptions(cat);
-    }, 450);
+    if (catDragHoldTimer.current) clearTimeout(catDragHoldTimer.current);
+
+    catDragHoldTimer.current = setTimeout(() => {
+      setTouchDraggingCatId(cat.id);
+      setDragOrder(uniqueCategories);
+      navigator.vibrate?.(35);
+    }, 280);
   };
 
   const handleCatTouchMove = (e: React.TouchEvent) => {
     const touch = e.touches[0];
     const dx = Math.abs(touch.clientX - catTouchStartPos.current.x);
     const dy = Math.abs(touch.clientY - catTouchStartPos.current.y);
-    if (dx > 10 || dy > 10) {
-      if (catHoldTimerRef.current) clearTimeout(catHoldTimerRef.current);
+
+    if (!touchDraggingCatId && (dx > 12 || dy > 12)) {
+      if (catDragHoldTimer.current) clearTimeout(catDragHoldTimer.current);
+      return;
+    }
+
+    if (touchDraggingCatId) {
+      const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+      const targetCatId = elem?.closest('[data-cat-id]')?.getAttribute('data-cat-id');
+      if (targetCatId && targetCatId !== touchDraggingCatId) {
+        const currentList = dragOrder || uniqueCategories;
+        const fromIdx = currentList.findIndex((c) => c.id === touchDraggingCatId);
+        const toIdx = currentList.findIndex((c) => c.id === targetCatId);
+        if (fromIdx !== -1 && toIdx !== -1 && fromIdx !== toIdx) {
+          const updated = [...currentList];
+          const [removed] = updated.splice(fromIdx, 1);
+          updated.splice(toIdx, 0, removed);
+          setDragOrder(updated);
+        }
+      }
     }
   };
 
-  const handleCatTouchEnd = () => {
-    if (catHoldTimerRef.current) clearTimeout(catHoldTimerRef.current);
+  const handleCatTouchEnd = async () => {
+    if (catDragHoldTimer.current) clearTimeout(catDragHoldTimer.current);
+    if (touchDraggingCatId) {
+      if (dragOrder) {
+        await reorderCategories(dragOrder);
+        setDragOrder(null);
+      }
+      setTouchDraggingCatId(null);
+    }
+  };
+
+  // Habits Touch Drag-and-Drop & Reordering (Pic 7)
+  const [touchDraggingHabitId, setTouchDraggingHabitId] = useState<string | null>(null);
+  const [dragHabitOrder, setDragHabitOrder] = useState<Habit[] | null>(null);
+  const habitDragHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const habitTouchStartPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const handleMoveHabit = async (habitId: string, direction: 'up' | 'down') => {
+    const list = [...dueHabits];
+    const index = list.findIndex((h) => h.id === habitId);
+    if (index === -1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= list.length) return;
+
+    const [removed] = list.splice(index, 1);
+    list.splice(targetIndex, 0, removed);
+    await reorderHabits(list);
+  };
+
+  const handleHabitTouchStart = (habit: Habit, e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    habitTouchStartPos.current = { x: touch.clientX, y: touch.clientY };
+    if (habitDragHoldTimer.current) clearTimeout(habitDragHoldTimer.current);
+
+    habitDragHoldTimer.current = setTimeout(() => {
+      setTouchDraggingHabitId(habit.id);
+      setDragHabitOrder(dueHabits);
+      navigator.vibrate?.(40);
+    }, 320);
+  };
+
+  const handleHabitTouchMove = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const dx = Math.abs(touch.clientX - habitTouchStartPos.current.x);
+    const dy = Math.abs(touch.clientY - habitTouchStartPos.current.y);
+
+    if (!touchDraggingHabitId && (dx > 12 || dy > 12)) {
+      if (habitDragHoldTimer.current) clearTimeout(habitDragHoldTimer.current);
+      return;
+    }
+
+    if (touchDraggingHabitId) {
+      const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+      const targetHabitId = elem?.closest('[data-habit-id]')?.getAttribute('data-habit-id');
+      if (targetHabitId && targetHabitId !== touchDraggingHabitId) {
+        const currentList = dragHabitOrder || dueHabits;
+        const fromIdx = currentList.findIndex((h) => h.id === touchDraggingHabitId);
+        const toIdx = currentList.findIndex((h) => h.id === targetHabitId);
+        if (fromIdx !== -1 && toIdx !== -1 && fromIdx !== toIdx) {
+          const updated = [...currentList];
+          const [removed] = updated.splice(fromIdx, 1);
+          updated.splice(toIdx, 0, removed);
+          setDragHabitOrder(updated);
+        }
+      }
+    }
+  };
+
+  const handleHabitTouchEnd = async () => {
+    if (habitDragHoldTimer.current) clearTimeout(habitDragHoldTimer.current);
+    if (touchDraggingHabitId) {
+      if (dragHabitOrder) {
+        await reorderHabits(dragHabitOrder);
+        setDragHabitOrder(null);
+      }
+      setTouchDraggingHabitId(null);
+    }
   };
 
   const handleCatMouseDown = (cat: Category, e: React.MouseEvent) => {
@@ -293,96 +416,135 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* 0. GROUND ZERO HERO CARD (REAL DAILY DISCIPLINE ANALYTICS) */}
-      <div className="relative overflow-hidden rounded-3xl bg-[#e0d7ff] p-5 sm:p-6 shadow-xs border border-[#cbbafd]/50">
-        <h2 className="font-display font-extrabold text-xl sm:text-2xl text-zinc-900 tracking-tight max-w-xs leading-snug mb-4">
-          Mastering habits with discipline
-        </h2>
-
-        {/* Live Daily Analytics Widget Card */}
-        <div className="bg-[#18181b] text-white rounded-2xl p-4 flex items-center justify-between shadow-lg">
-          <div className="space-y-1">
-            <div className="font-display font-extrabold text-2xl sm:text-3xl text-white tracking-tight flex items-center gap-2">
-              {totalDueCount === 0 ? (
-                <span>All Caught Up</span>
-              ) : isAllCompletedToday ? (
-                <span className="text-emerald-400">100% Done</span>
-              ) : (
-                <span>
-                  {Math.max(0, 23 - new Date().getHours())}h {Math.max(0, 59 - new Date().getMinutes())}m Left
-                </span>
-              )}
+      {/* 0. IF JUST TRACKING ONLY: SHOW DEDICATED CLEAN HERO (Pic 2) */}
+      {isJustTrackingOnly ? (
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-950 via-zinc-900 to-indigo-950 p-5 sm:p-6 text-white shadow-md border border-purple-800/40">
+          <div className="absolute top-0 right-0 w-44 h-44 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-center justify-between gap-3 relative z-10">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center border border-purple-400/30">
+                  <Sparkles size={16} />
+                </div>
+                <h2 className="font-display font-extrabold text-xl text-white tracking-tight">
+                  Just Tracking
+                </h2>
+              </div>
+              <p className="text-xs text-purple-200/80">
+                Flexible habits · Zero penalties · Log anytime
+              </p>
             </div>
-            <p className="text-xs text-zinc-400 font-medium">
-              {totalDueCount === 0
-                ? 'No pending tasks scheduled for today.'
-                : isAllCompletedToday
-                ? `All ${completedDueCount} tasks completed today! +100 bonus XP awarded.`
-                : `${completedDueCount} of ${totalDueCount} tasks completed (${totalDueCount > 0 ? Math.round((completedDueCount / totalDueCount) * 100) : 0}%) · ${totalDueCount - completedDueCount} remaining.`}
-            </p>
-          </div>
 
-          {/* 3D Dynamic Badge */}
-          <div
-            className={clsx(
-              'w-14 h-14 rounded-2xl flex items-center justify-center shadow-md rotate-6 shrink-0 transition-all',
-              isAllCompletedToday
-                ? 'bg-gradient-to-tr from-emerald-400 to-teal-300 text-zinc-900'
-                : 'bg-gradient-to-tr from-amber-400 to-amber-300 text-zinc-900'
-            )}
-          >
-            {isAllCompletedToday ? (
-              <CheckCircle2 size={30} className="text-zinc-900" />
-            ) : (
-              <Zap size={28} className="fill-current text-zinc-900" />
-            )}
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => onOpenCreateHabitWithFrequency?.('JUST_TRACKING')}
+              className="gap-1.5 text-xs font-bold shrink-0 shadow-md"
+            >
+              <Plus size={15} /> Add Habit
+            </Button>
           </div>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* 0. GROUND ZERO HERO CARD (REAL DAILY DISCIPLINE ANALYTICS) */}
+          <div className="relative overflow-hidden rounded-3xl bg-[#e0d7ff] p-5 sm:p-6 shadow-xs border border-[#cbbafd]/50">
+            <h2 className="font-display font-extrabold text-xl sm:text-2xl text-zinc-900 tracking-tight max-w-xs leading-snug mb-4">
+              Mastering habits with discipline
+            </h2>
 
-      {/* 0.5 MOTIVATIONAL REELS CARD (47 HIGH-ENERGY DISCIPLINE CLIPS) */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-zinc-950 via-zinc-900 to-stone-900 p-4 sm:p-5 text-white shadow-sm border border-zinc-800 flex items-center justify-between gap-3">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl pointer-events-none" />
+            {/* Live Daily Analytics Widget Card */}
+            <div className="bg-[#18181b] text-white rounded-2xl p-4 flex items-center justify-between shadow-lg">
+              <div className="space-y-1">
+                <div className="font-display font-extrabold text-2xl sm:text-3xl text-white tracking-tight flex items-center gap-2">
+                  {totalDueCount === 0 ? (
+                    <span>All Caught Up</span>
+                  ) : isAllCompletedToday ? (
+                    <span className="text-emerald-400">100% Done</span>
+                  ) : (
+                    <span>
+                      {Math.max(0, 23 - new Date().getHours())}h {Math.max(0, 59 - new Date().getMinutes())}m Left
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-zinc-400 font-medium">
+                  {totalDueCount === 0
+                    ? 'No pending tasks scheduled for today.'
+                    : isAllCompletedToday
+                    ? `All ${completedDueCount} tasks completed today! +100 bonus XP awarded.`
+                    : `${completedDueCount} of ${totalDueCount} tasks completed (${totalDueCount > 0 ? Math.round((completedDueCount / totalDueCount) * 100) : 0}%) · ${totalDueCount - completedDueCount} remaining.`}
+                </p>
+              </div>
 
-        <div className="flex items-center gap-3.5 min-w-0 z-10">
-          <div className="relative shrink-0">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-500 via-primary to-amber-500 p-[2px] shadow-md">
-              <div className="w-full h-full rounded-[14px] bg-zinc-950 flex items-center justify-center">
-                <Play size={20} className="fill-primary text-primary ml-0.5" />
+              {/* 3D Dynamic Badge */}
+              <div
+                className={clsx(
+                  'w-14 h-14 rounded-2xl flex items-center justify-center shadow-md rotate-6 shrink-0 transition-all',
+                  isAllCompletedToday
+                    ? 'bg-gradient-to-tr from-emerald-400 to-teal-300 text-zinc-900'
+                    : 'bg-gradient-to-tr from-amber-400 to-amber-300 text-zinc-900'
+                )}
+              >
+                {isAllCompletedToday ? (
+                  <CheckCircle2 size={30} className="text-zinc-900" />
+                ) : (
+                  <Zap size={28} className="fill-current text-zinc-900" />
+                )}
               </div>
             </div>
-            <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-rose-600 text-white font-mono text-[9px] font-black shadow-xs animate-pulse">
-              {MOTIVATIONAL_REELS.length}
-            </span>
           </div>
 
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <h4 className="font-display font-extrabold text-sm sm:text-base tracking-tight text-white">
-                Discipline Fuel Reels
-              </h4>
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-300 bg-amber-950/70 border border-amber-800/80 px-2 py-0.2 rounded-full">
-                Shorts
-              </span>
+          {/* 0.5 MOTIVATIONAL REELS CARD (47 HIGH-ENERGY DISCIPLINE CLIPS) */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-zinc-950 via-zinc-900 to-stone-900 p-4 sm:p-5 text-white shadow-sm border border-zinc-800 flex items-center justify-between gap-3">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="flex items-center gap-3.5 min-w-0 z-10">
+              <div className="relative shrink-0">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-500 via-primary to-amber-500 p-[2px] shadow-md">
+                  <div className="w-full h-full rounded-[14px] bg-zinc-950 flex items-center justify-center">
+                    <Play size={20} className="fill-primary text-primary ml-0.5" />
+                  </div>
+                </div>
+                <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-rose-600 text-white font-mono text-[9px] font-black shadow-xs animate-pulse">
+                  {MOTIVATIONAL_REELS.length}
+                </span>
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <h4 className="font-display font-extrabold text-sm sm:text-base tracking-tight text-white">
+                    Discipline Fuel Reels
+                  </h4>
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-300 bg-amber-950/70 border border-amber-800/80 px-2 py-0.2 rounded-full">
+                    Shorts
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-400 truncate mt-0.5">
+                  Swipe 47 full-screen mindset & discipline reels
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-zinc-400 truncate mt-0.5">
-              Swipe 47 full-screen mindset & discipline reels
-            </p>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (onOpenReels) {
+                  onOpenReels();
+                } else {
+                  setIsReelsOpen(true);
+                }
+              }}
+              className="z-10 px-4 py-2.5 rounded-2xl bg-primary hover:bg-primary-deep text-white font-display font-bold text-xs shadow-md hover:shadow-lg transition-all active:scale-95 shrink-0 flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>Watch</span>
+              <ArrowRight size={14} />
+            </button>
           </div>
-        </div>
 
-        <button
-          type="button"
-          onClick={() => setIsReelsOpen(true)}
-          className="z-10 px-4 py-2.5 rounded-2xl bg-primary hover:bg-primary-deep text-white font-display font-bold text-xs shadow-md hover:shadow-lg transition-all active:scale-95 shrink-0 flex items-center gap-1.5 cursor-pointer"
-        >
-          <span>Watch</span>
-          <ArrowRight size={14} />
-        </button>
-      </div>
-
-      {/* 1. DATE PICKER STRIP */}
-      <DayStrip />
+          {/* 1. DATE PICKER STRIP */}
+          <DayStrip />
+        </>
+      )}
 
       {/* SECTION HEADER: YOUR HABITS + SEE ALL */}
       <div className="flex items-center justify-between gap-2 pt-2">
@@ -452,6 +614,7 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
           return (
             <div
               key={cat.id}
+              data-cat-id={cat.id}
               onTouchStart={(e) => handleCatTouchStart(cat, e)}
               onTouchEnd={handleCatTouchEnd}
               onTouchMove={handleCatTouchMove}
@@ -467,8 +630,8 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
               onDragOver={(e) => handleDragOver(e, cat.id)}
               onDragEnd={handleDragEnd}
               className={clsx(
-                'flex items-center transition-all shrink-0',
-                isBeingDragged && 'opacity-50 scale-95'
+                'flex items-center transition-all shrink-0 select-none',
+                (isBeingDragged || touchDraggingCatId === cat.id) && 'opacity-50 scale-105 shadow-md z-10'
               )}
             >
               <button
@@ -647,50 +810,50 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
         </div>
       )}
 
-      {/* 3. TOOLBAR: HABITS COUNT & VIEW MODE SWITCHER (GRID VS HORIZONTAL LIST) */}
-      <div className="flex items-center justify-between gap-2 pt-1 pb-0.5">
-        <span className="text-xs font-bold text-charcoal uppercase tracking-wider ml-1 flex items-center gap-1.5">
+      {/* 3. TOOLBAR: HABITS COUNT & VIEW MODE SWITCHER (GRID VS LIST) - Clean & Un-congested (Pic 3) */}
+      <div className="flex items-center justify-between gap-2 py-2 sm:py-2.5 my-1 border-b border-hairline/60">
+        <span className="text-xs font-bold text-charcoal tracking-wide ml-0.5 flex items-center gap-1.5">
           {effectiveCatFilter === 'cat-archived' ? (
             <>
-              <Archive size={13} className="text-emerald-600" />
-              <span>Archived Habits ({dueHabits.length})</span>
+              <Archive size={14} className="text-emerald-600" />
+              <span>Archived ({dueHabits.length})</span>
             </>
           ) : effectiveCatFilter === 'cat-just-tracking' ? (
             <>
-              <Sparkles size={13} className="text-purple-600" />
-              <span>Just Tracking Habits ({dueHabits.length})</span>
+              <Sparkles size={14} className="text-purple-600" />
+              <span>Just Tracking ({dueHabits.length})</span>
             </>
           ) : effectiveCatFilter === 'all' ? (
-            <span>All Habits ({dueHabits.length})</span>
+            <span>All Tasks ({dueHabits.length})</span>
           ) : (
             <span>
-              {categories.find((c) => c.id === effectiveCatFilter)?.name || 'Category'} Habits ({dueHabits.length})
+              {categories.find((c) => c.id === effectiveCatFilter)?.name || 'Category'} ({dueHabits.length})
             </span>
           )}
         </span>
 
-        {/* View Mode Switcher: Grid vs Horizontal List */}
+        {/* View Mode Switcher: Grid vs List (Short, clean labels) */}
         <div className="flex items-center bg-surface-card p-1 rounded-full border border-hairline shadow-2xs">
           <button
             type="button"
-            onClick={() => setViewMode('grid')}
+            onClick={() => handleSetViewMode('grid')}
             className={clsx(
-              'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all',
+              'flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold transition-all',
               viewMode === 'grid'
                 ? 'bg-ink text-white shadow-2xs'
                 : 'text-charcoal hover:text-ink'
             )}
-            title="Grid Card View"
+            title="Grid View"
           >
             <LayoutGrid size={13} />
-            <span>Grid View</span>
+            <span>Grid</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setViewMode('list')}
+            onClick={() => handleSetViewMode('list')}
             className={clsx(
-              'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all',
+              'flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold transition-all',
               viewMode === 'list'
                 ? 'bg-ink text-white shadow-2xs'
                 : 'text-charcoal hover:text-ink'
@@ -698,7 +861,7 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
             title="Horizontal List View"
           >
             <List size={13} />
-            <span>Horizontal List</span>
+            <span>List</span>
           </button>
         </div>
       </div>
@@ -803,16 +966,27 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
               : 'flex flex-col gap-3 sm:gap-3.5'
           )}
         >
-          {dueHabits.map((habit) => (
+          {(dragHabitOrder && touchDraggingHabitId ? dragHabitOrder : dueHabits).map((habit, habitIdx, arr) => (
             <div
               key={habit.id}
-              className={clsx(viewMode === 'grid' ? 'h-full flex flex-col' : '')}
+              data-habit-id={habit.id}
+              onTouchStart={(e) => handleHabitTouchStart(habit, e)}
+              onTouchMove={handleHabitTouchMove}
+              onTouchEnd={handleHabitTouchEnd}
+              className={clsx(
+                viewMode === 'grid' ? 'h-full flex flex-col' : '',
+                touchDraggingHabitId === habit.id && 'opacity-60 scale-[1.02] shadow-xl z-20'
+              )}
             >
               <HabitCard
                 habit={habit}
                 dateKey={selectedDate}
                 variant={viewMode}
                 onOpenDetails={onOpenHabitDetails}
+                onMoveUp={() => handleMoveHabit(habit.id, 'up')}
+                onMoveDown={() => handleMoveHabit(habit.id, 'down')}
+                isFirst={habitIdx === 0}
+                isLast={habitIdx === arr.length - 1}
               />
             </div>
           ))}
@@ -1000,10 +1174,12 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
       />
 
       {/* Fullscreen Motivational Reels Player Modal (Insta / Shorts format) */}
-      <MotivationalReelsModal
-        isOpen={isReelsOpen}
-        onClose={() => setIsReelsOpen(false)}
-      />
+      {!onOpenReels && (
+        <MotivationalReelsModal
+          isOpen={isReelsOpen}
+          onClose={() => setIsReelsOpen(false)}
+        />
+      )}
     </div>
   );
 };

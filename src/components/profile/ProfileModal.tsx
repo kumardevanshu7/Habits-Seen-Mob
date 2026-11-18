@@ -530,44 +530,37 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
           {/* APP VERSION & IN-APP UPDATE CENTER (GITHUB RELEASES) */}
           <div className="p-4 bg-surface-card border border-hairline rounded-2xl shadow-2xs space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                  <ArrowUpCircle size={20} />
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <ArrowUpCircle size={18} />
                 </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-display font-bold text-sm text-ink truncate">
-                      HabitSeen Updates
-                    </h4>
-                    <span className="font-mono text-[10px] font-bold text-charcoal bg-surface-bone px-2 py-0.5 rounded-full border border-hairline shrink-0">
-                      v{CURRENT_APP_VERSION}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-mute truncate mt-0.5">
+                <div>
+                  <h4 className="font-display font-bold text-sm text-ink">
+                    App Updates
+                  </h4>
+                  <p className="text-[11px] text-mute">
                     Official GitHub Releases
                   </p>
                 </div>
               </div>
 
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleCheckForUpdates}
-                disabled={updateStatus === 'checking'}
-                className="text-xs font-bold gap-1.5 shadow-2xs shrink-0 px-3.5 py-1.5 h-9 cursor-pointer"
-              >
-                <RefreshCw size={13} className={clsx(updateStatus === 'checking' && 'animate-spin text-primary')} />
-                <span>{updateStatus === 'checking' ? 'Checking...' : 'Check Updates'}</span>
-              </Button>
+              <span className="font-mono text-xs font-bold text-charcoal bg-surface-bone px-2.5 py-1 rounded-full border border-hairline shrink-0">
+                v{CURRENT_APP_VERSION}
+              </span>
             </div>
 
-            {/* REPO INFO ROW */}
-            <div className="pt-2 border-t border-hairline/60 flex items-center justify-between text-[11px] text-stone">
-              <span>Cloud Distribution Channel</span>
-              <span className="font-mono font-medium text-charcoal">{GITHUB_REPO}</span>
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleCheckForUpdates}
+              disabled={updateStatus === 'checking'}
+              className="w-full text-xs font-bold gap-1.5 shadow-2xs h-9 cursor-pointer justify-center"
+            >
+              <RefreshCw size={13} className={clsx(updateStatus === 'checking' && 'animate-spin text-primary')} />
+              <span>{updateStatus === 'checking' ? 'Checking for Updates...' : 'Check for Updates'}</span>
+            </Button>
 
             {/* STATUS: UPDATE AVAILABLE */}
             {updateStatus === 'available' && updateInfo && (
@@ -575,7 +568,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 <div className="flex items-center justify-between text-xs text-emerald-900 font-bold">
                   <span className="flex items-center gap-1.5">
                     <Sparkles size={14} className="text-emerald-600" />
-                    New Version Available: v{updateInfo.version}
+                    New Version: v{updateInfo.version}
                   </span>
                   <span className="text-[10px] text-emerald-700 font-mono">
                     {updateInfo.publishedAt.slice(0, 10)}
@@ -625,17 +618,17 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </div>
 
           {/* USER FEEDBACK & VULNERABILITY / CORRECTION FORM */}
-          <div className="p-4 bg-surface-card border border-hairline rounded-2xl shadow-2xs flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
-                <MessageSquarePlus size={18} />
+          <div className="p-4 bg-surface-card border border-hairline rounded-2xl shadow-2xs space-y-2.5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                <MessageSquarePlus size={17} />
               </div>
-              <div className="min-w-0">
-                <h4 className="font-display font-bold text-sm text-ink truncate">
+              <div>
+                <h4 className="font-display font-bold text-sm text-ink">
                   Feedback & Bug Reports
                 </h4>
-                <p className="text-[11px] text-mute truncate mt-0.5">
-                  Report issues, vulnerabilities, or suggest features
+                <p className="text-[11px] text-mute">
+                  Report bugs, vulnerabilities, or suggest new features
                 </p>
               </div>
             </div>
@@ -644,10 +637,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               href={APP_CONFIG.feedbackFormUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 h-9 rounded-full bg-surface-bone hover:bg-stone/20 text-ink text-xs font-bold border border-hairline transition-all active:scale-95 shrink-0"
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-surface-bone hover:bg-stone/20 text-ink text-xs font-bold border border-hairline transition-all active:scale-98"
             >
-              <span>Submit Form</span>
-              <ExternalLink size={12} />
+              <span>Submit Google Form</span>
+              <ExternalLink size={13} />
             </a>
           </div>
 

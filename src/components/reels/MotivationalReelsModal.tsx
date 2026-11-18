@@ -147,7 +147,23 @@ export const MotivationalReelsModal: React.FC<MotivationalReelsModalProps> = ({
       } else if (e.key === ' ' || e.key === 'Spacebar') {
         e.preventDefault();
         handleVideoTap();
-      } else if (e.key === 'm' || e.key === 'M') {
+      } else if (
+        e.key === 'm' ||
+        e.key === 'M' ||
+        e.key === 'AudioVolumeUp' ||
+        e.key === 'VolumeUp' ||
+        e.code === 'AudioVolumeUp' ||
+        (e as any).keyCode === 175
+      ) {
+        // Volume Up / 'M' unmutes sound
+        setIsMuted((prev) => !prev);
+      } else if (
+        e.key === 'AudioVolumeDown' ||
+        e.key === 'VolumeDown' ||
+        e.code === 'AudioVolumeDown' ||
+        (e as any).keyCode === 174
+      ) {
+        // Volume Down key
         setIsMuted((prev) => !prev);
       }
     };

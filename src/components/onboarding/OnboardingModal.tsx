@@ -192,11 +192,13 @@ export const OnboardingModal: React.FC = () => {
                   required
                 />
 
-                <div className="p-3 bg-amber-50 border border-amber-300 rounded-2xl flex items-start gap-2 text-amber-900 text-xs shadow-2xs">
+                <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-2xl flex items-start gap-2.5 text-amber-950 text-xs shadow-2xs">
                   <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                  <div>
-                    <strong className="block font-bold">⚠️ PERMANENT STARTING POINT ANCHOR</strong>
-                    Ye aapka official discipline starting point hai. <strong className="underline">Once set during onboarding, this date is non-changeable.</strong> Isliye apna permanent starting point dhyan se choose karein.
+                  <div className="space-y-0.5">
+                    <strong className="block font-bold text-amber-900">Permanent Starting Date</strong>
+                    <p className="text-[11px] text-amber-800 leading-snug">
+                      This date anchors your discipline score. <span className="font-semibold underline">Once set, it cannot be changed.</span> Choose carefully.
+                    </p>
                   </div>
                 </div>
               </div>

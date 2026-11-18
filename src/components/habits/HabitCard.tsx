@@ -16,6 +16,8 @@ import {
   Archive,
   Trash2,
   AlertTriangle,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import clsx from 'clsx';
 import confetti from 'canvas-confetti';
@@ -29,6 +31,10 @@ interface HabitCardProps {
   dateKey: string;
   onOpenDetails: (habit: Habit) => void;
   variant?: 'grid' | 'list';
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  isFirst?: boolean;
+  isLast?: boolean;
 }
 
 export const HabitCard: React.FC<HabitCardProps> = ({
@@ -36,6 +42,10 @@ export const HabitCard: React.FC<HabitCardProps> = ({
   dateKey,
   onOpenDetails,
   variant = 'grid',
+  onMoveUp,
+  onMoveDown,
+  isFirst,
+  isLast,
 }) => {
   const { categories, logs, logHabit, addHabit, toggleArchiveHabit, deleteHabit, user } = useAppStore();
 
@@ -268,13 +278,33 @@ export const HabitCard: React.FC<HabitCardProps> = ({
               {/* TITLE */}
               <h3
                 className={clsx(
-                  'font-display font-bold text-xs sm:text-sm text-zinc-900 tracking-tight line-clamp-2 leading-snug mb-2 min-h-[2rem]',
+                  'font-display font-bold text-xs sm:text-sm text-zinc-900 tracking-tight line-clamp-2 leading-snug mb-1.5 min-h-[2rem]',
                   isCompleted && 'line-through text-zinc-400'
                 )}
                 title={habit.name}
               >
                 {habit.name}
               </h3>
+
+              {/* CATEGORY CUSTOM COLOR BADGE */}
+              {category && (
+                <div className="mb-2">
+                  <span
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border"
+                    style={{
+                      backgroundColor: `${category.color || '#6366f1'}15`,
+                      color: category.color || '#6366f1',
+                      borderColor: `${category.color || '#6366f1'}35`,
+                    }}
+                  >
+                    <span
+                      className="w-1 h-1 rounded-full shrink-0"
+                      style={{ backgroundColor: category.color || '#6366f1' }}
+                    />
+                    {category.name}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div>
@@ -368,9 +398,23 @@ export const HabitCard: React.FC<HabitCardProps> = ({
                 {priorityLabel}
               </span>
 
-              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-zinc-100 text-zinc-600 text-xs font-medium">
-                {category?.name || 'General'}
-              </span>
+              {/* CATEGORY CUSTOM COLOR BADGE */}
+              {category && (
+                <span
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-2xs"
+                  style={{
+                    backgroundColor: `${category.color || '#6366f1'}15`,
+                    color: category.color || '#6366f1',
+                    borderColor: `${category.color || '#6366f1'}35`,
+                  }}
+                >
+                  <span
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{ backgroundColor: category.color || '#6366f1' }}
+                  />
+                  {category.name}
+                </span>
+              )}
             </div>
 
             {/* PROGRESS BAR */}
@@ -443,6 +487,48 @@ export const HabitCard: React.FC<HabitCardProps> = ({
           </div>
 
           <div className="space-y-2">
+            {onMoveUp && !isFirst && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOptionsMenuOpen(false);
+                  onMoveUp();
+                }}
+                className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-zinc-50 hover:bg-zinc-100 text-zinc-800 font-semibold text-sm transition-colors text-left border border-zinc-200/50"
+              >
+                <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">
+                  <ArrowUp size={16} />
+                </div>
+                <div className="flex-1">
+                  <span className="block font-bold">Move Up</span>
+                  <span className="block text-xs text-zinc-500 font-normal">
+                    Shift habit higher in your daily order
+                  </span>
+                </div>
+              </button>
+            )}
+
+            {onMoveDown && !isLast && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOptionsMenuOpen(false);
+                  onMoveDown();
+                }}
+                className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-zinc-50 hover:bg-zinc-100 text-zinc-800 font-semibold text-sm transition-colors text-left border border-zinc-200/50"
+              >
+                <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">
+                  <ArrowDown size={16} />
+                </div>
+                <div className="flex-1">
+                  <span className="block font-bold">Move Down</span>
+                  <span className="block text-xs text-zinc-500 font-normal">
+                    Shift habit lower in your daily order
+                  </span>
+                </div>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleDuplicate}
