@@ -81,10 +81,21 @@ jobs:
             exit 1
           }
 
-      - name: Verify Generated APK
+      - name: Verify and Prepare Generated APK
         run: |
-          ls -la android/app/build/outputs/apk/debug/
+          ls -la android/app/build/outputs/apk/debug/ || true
+          if [ -f "android/app/build/outputs/apk/debug/HabitSeen.apk" ]; then
+            echo "HabitSeen.apk found directly."
+          elif [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+            echo "Renaming app-debug.apk to HabitSeen.apk"
+            cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/HabitSeen.apk
+          else
+            APK_FOUND=$(find android/app/build/outputs/apk -name "*.apk" | head -n 1)
+            echo "Found APK at: $APK_FOUND"
+            cp "$APK_FOUND" android/app/build/outputs/apk/debug/HabitSeen.apk
+          fi
           test -f android/app/build/outputs/apk/debug/HabitSeen.apk
+          ls -lh android/app/build/outputs/apk/debug/HabitSeen.apk
 
       - name: Extract Commit Info
         id: vars
