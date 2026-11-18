@@ -642,15 +642,33 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     <Zap size={14} className="fill-current" /> Download & Apply Live Update (OTA)
                   </Button>
                 ) : (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    onClick={handleDownloadFullApk}
-                    className="w-full gap-2 font-bold shadow-xs cursor-pointer"
-                  >
-                    <Download size={14} /> Download APK from GitHub Releases
-                  </Button>
+                  <div className="space-y-2">
+                    <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl flex items-start gap-2 text-amber-900 text-xs">
+                      <RefreshCw size={15} className="text-amber-600 shrink-0 mt-0.5 animate-spin" />
+                      <div>
+                        <strong className="block font-bold">Cloud Live Update Bundle Generating...</strong>
+                        <p className="text-[11px] text-amber-800">
+                          GitHub Actions cloud is compiling the in-app live update bundle for this commit (~2 mins). Tap 'Refresh Status' once ready to apply it directly inside the app without reinstalling!
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCheckForUpdates}
+                      className="w-full gap-2 font-bold shadow-xs cursor-pointer"
+                    >
+                      <RefreshCw size={14} /> Refresh Update Status
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadFullApk}
+                      className="w-full text-center text-[11px] text-stone font-semibold hover:underline pt-0.5 cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      <Download size={11} /> Or download full APK manually
+                    </button>
+                  </div>
                 )}
 
                 {/* OPTIONAL FULL APK DOWNLOAD FALLBACK */}
