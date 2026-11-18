@@ -145,7 +145,7 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
       }
     }
 
-    // 2. Check live GitHub Commits on main branch to detect pushed updates
+    // 2. Check live GitHub Commits on main branch to detect pushed updates that are still building
     const commitRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/commits?per_page=1`, {
       headers: {
         Accept: 'application/vnd.github.v3+json',
@@ -162,12 +162,11 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
 
         if (shortSha && shortSha.toLowerCase() !== CURRENT_BUILD_COMMIT.toLowerCase()) {
           return {
-            version: `${CURRENT_APP_VERSION}-${shortSha}`,
-            name: `GitHub Update Available (${shortSha})`,
-            notes: `New code update pushed to repository:\n"${commitMsg}"\n\nGitHub Actions is building the live update bundle and APK.`,
-            apkDownloadUrl: `https://github.com/${GITHUB_REPO}/releases`,
+            version: CURRENT_APP_VERSION,
+            name: `HabitSeen v${CURRENT_APP_VERSION} (${CURRENT_BUILD_COMMIT})`,
+            notes: `New code was recently pushed: "${commitMsg}". GitHub Actions is currently compiling the in-app live update bundle (~2 mins). Tap Check Updates in a moment to apply it instantly!`,
+            hasUpdate: false,
             publishedAt: commitDate,
-            hasUpdate: true,
             isLiveUpdate: false,
           };
         }
