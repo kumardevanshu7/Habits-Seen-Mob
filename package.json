@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:cap": "node -e \"process.env.CAPACITOR_BUILD='true'; require('child_process').execSync('npm run build', {stdio:'inherit'})\"",
     "preview": "vite preview",
     "cap": "cap"
   },

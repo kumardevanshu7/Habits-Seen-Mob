@@ -343,6 +343,19 @@ export async function downloadLiveUpdate(
 export async function restartApp(): Promise<void> {
   try {
     if (Capacitor.isNativePlatform()) {
+      // Ensure any legacy Service Worker & Workbox cache are purged before switching bundle paths
+      if ('serviceWorker' in navigator) {
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((r) => r.unregister().catch(() => false)));
+        } catch {}
+      }
+      if ('caches' in window) {
+        try {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k).catch(() => false)));
+        } catch {}
+      }
       await CapacitorUpdater.reload();
     } else {
       window.location.reload();

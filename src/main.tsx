@@ -2,50 +2,54 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
-import { registerSW } from 'virtual:pwa-register';
 import { Capacitor } from '@capacitor/core';
-import { CapacitorUpdater } from '@capgo/capacitor-updater';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
-// Inform CapacitorUpdater that the app loaded successfully so live OTA bundles are committed,
-// and disable/clean up PWA Service Workers on native WebView so OTA reloads never serve stale cache.
+// Disable/clean up any PWA Service Workers on native WebView so OTA reloads never serve stale cache.
+// Note: CapacitorUpdater.notifyAppReady() is called inside App.tsx's mount useEffect (never before React renders)
+// so Capgo's automatic rollback stays armed if React ever fails to mount.
 if (Capacitor.isNativePlatform()) {
-  CapacitorUpdater.notifyAppReady().catch((e) => {
-    console.warn('CapacitorUpdater notifyAppReady error:', e);
-  });
-
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then((registrations) => {
-      registrations.forEach((registration) => {
-        registration.unregister().catch(() => {});
-      });
-    }).catch(() => {});
+    navigator.serviceWorker
+      .getRegistrations()
+      .then((registrations) => {
+        registrations.forEach((registration) => {
+          registration.unregister().catch(() => {});
+        });
+      })
+      .catch(() => {});
   }
 
   if ('caches' in window) {
-    caches.keys().then((cacheNames) => {
-      cacheNames.forEach((name) => {
-        if (name.includes('workbox') || name.includes('precache') || name.includes('sw')) {
+    caches
+      .keys()
+      .then((cacheNames) => {
+        cacheNames.forEach((name) => {
           caches.delete(name).catch(() => {});
-        }
-      });
-    }).catch(() => {});
+        });
+      })
+      .catch(() => {});
   }
 } else {
   // Register PWA service worker only on web browsers
-  const updateSW = registerSW({
-    immediate: true,
-    onNeedRefresh() {
-      updateSW(true);
-    },
-    onRegistered(registration) {
-      if (registration) {
-        registration.update();
-        setInterval(() => {
-          registration.update();
-        }, 60 * 1000);
-      }
-    },
-  });
+  import('virtual:pwa-register')
+    .then(({ registerSW }) => {
+      const updateSW = registerSW({
+        immediate: true,
+        onNeedRefresh() {
+          updateSW(true);
+        },
+        onRegistered(registration) {
+          if (registration) {
+            registration.update();
+            setInterval(() => {
+              registration.update();
+            }, 60 * 1000);
+          }
+        },
+      });
+    })
+    .catch(() => {});
 
   // Globally capture beforeinstallprompt event so it is never missed before components mount
   window.addEventListener('beforeinstallprompt', (e) => {
@@ -57,6 +61,8 @@ if (Capacitor.isNativePlatform()) {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary fallbackTitle="HabitSeen failed to load">
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>
 );

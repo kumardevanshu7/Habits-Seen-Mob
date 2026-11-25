@@ -92,7 +92,7 @@ export const useUpdateStore = create<UpdateStoreState>((set, get) => ({
   },
 
   restartToApply: async () => {
-    set({ isRestartModalOpen: false });
+    // Keep modal mounted during reload so Modal cleanup does not fire history.go(-1) concurrently
     await restartApp();
   },
 }));

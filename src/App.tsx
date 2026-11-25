@@ -30,6 +30,7 @@ import { MotivationalReelsModal } from './components/reels/MotivationalReelsModa
 import { BrandLegalModal, BrandLegalTab } from './components/brand/BrandLegalModal';
 import { isModalHandlingPopState, closeTopModal } from './components/ui/Modal';
 import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { Button } from './components/ui/Button';
@@ -125,11 +126,12 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Inform Capacitor Live Updater that bundle loaded successfully
+  // Inform Capacitor Live Updater that React mounted cleanly (arms rollback safety if mount fails)
   useEffect(() => {
-    try {
-      CapacitorUpdater.notifyAppReady();
-    } catch {}
+    if (!Capacitor.isNativePlatform()) return;
+    CapacitorUpdater.notifyAppReady().catch((e) => {
+      console.warn('CapacitorUpdater notifyAppReady error:', e);
+    });
   }, []);
 
   // Global mobile back-gesture (popstate) listener

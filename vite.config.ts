@@ -11,6 +11,8 @@ try {
   gitCommitSha = '1.0.0'
 }
 
+const isCapacitorBuild = process.env.CAPACITOR_BUILD === 'true';
+
 // https://vite.dev/config/
 export default defineConfig({
   define: {
@@ -19,6 +21,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      disable: isCapacitorBuild,
       registerType: 'autoUpdate',
       includeAssets: [
         'favicon.ico',

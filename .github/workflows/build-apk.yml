@@ -33,6 +33,8 @@ jobs:
         run: npm install --legacy-peer-deps
 
       - name: Build Web Production Assets
+        env:
+          CAPACITOR_BUILD: 'true'
         run: npm run build
 
       - name: Package Live OTA Web Bundle
