@@ -31,14 +31,12 @@ import { getNextHeartsUpgrade, GAME_RULES } from '../../constants/gamification';
 import { verifySecurityAnswer, normalizeSecurityAnswer } from '../../utils/cryptoUtils';
 import clsx from 'clsx';
 import {
-  checkForAppUpdate,
-  downloadLiveUpdate,
-  restartApp,
   parseReleaseNotes,
   CURRENT_APP_VERSION,
+  CURRENT_BUILD_COMMIT,
   GITHUB_REPO,
-  AppReleaseInfo,
 } from '../../services/updateService';
+import { useUpdateStore } from '../../stores/useUpdateStore';
 
 import { Trophy, ChevronRight, RotateCcw, ArrowDownCircle } from 'lucide-react';
 import { BrandLegalTab } from '../brand/BrandLegalModal';
@@ -81,31 +79,18 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   // Danger Zone Reset State
   const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
 
-  // In-App Updates from GitHub Releases & Live OTA
-  const [updateStatus, setUpdateStatus] = useState<
-    'idle' | 'checking' | 'available' | 'downloading' | 'ready-to-restart' | 'latest' | 'error'
-  >('idle');
-  const [updateInfo, setUpdateInfo] = useState<AppReleaseInfo | null>(null);
-  const [updateError, setUpdateError] = useState<string | null>(null);
-  const [downloadProgress, setDownloadProgress] = useState<number>(0);
-  const [isRestartModalOpen, setIsRestartModalOpen] = useState<boolean>(false);
-
-  const handleCheckForUpdates = async () => {
-    setUpdateStatus('checking');
-    setUpdateError(null);
-    try {
-      const release = await checkForAppUpdate();
-      setUpdateInfo(release);
-      if (release.hasUpdate) {
-        setUpdateStatus('available');
-      } else {
-        setUpdateStatus('latest');
-      }
-    } catch (err: any) {
-      setUpdateStatus('error');
-      setUpdateError(err?.message || 'Could not connect to GitHub. Please check internet connection.');
-    }
-  };
+  // In-App Updates from GitHub Releases & Live OTA (persisted across modal close/open)
+  const {
+    updateStatus,
+    updateInfo,
+    updateError,
+    downloadProgress,
+    isRestartModalOpen,
+    setRestartModalOpen: setIsRestartModalOpen,
+    checkUpdates: handleCheckForUpdates,
+    startLiveDownload,
+    restartToApply: handleRestartNow,
+  } = useUpdateStore();
 
   const handleStartLiveDownload = async () => {
     if (!updateInfo) return;
@@ -119,30 +104,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       return;
     }
 
-    setUpdateStatus('downloading');
-    setDownloadProgress(0);
-    setUpdateError(null);
-
-    const res = await downloadLiveUpdate(
-      updateInfo.bundleUrl,
-      updateInfo.version,
-      updateInfo.checksum,
-      (percent) => {
-        setDownloadProgress(percent);
-      }
-    );
-
-    if (res.success) {
-      setUpdateStatus('ready-to-restart');
-      setIsRestartModalOpen(true);
-    } else {
-      setUpdateStatus('available');
-      setUpdateError(res.error || 'Live bundle update failed. You can still download the full APK.');
-    }
-  };
-
-  const handleRestartNow = async () => {
-    await restartApp();
+    await startLiveDownload();
   };
 
   const handleDownloadFullApk = () => {
@@ -590,8 +552,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 </div>
               </div>
 
-              <span className="font-mono text-xs font-bold text-charcoal bg-surface-bone px-2.5 py-1 rounded-full border border-hairline shrink-0">
-                v{CURRENT_APP_VERSION}
+              <span className="font-mono text-[11px] font-bold text-charcoal bg-surface-bone px-2.5 py-1 rounded-full border border-hairline shrink-0">
+                v{CURRENT_APP_VERSION} • {CURRENT_BUILD_COMMIT}
               </span>
             </div>
 
@@ -660,7 +622,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                         <span>Download & Apply Update</span>
                       </Button>
                       <p className="text-[10px] text-emerald-800 text-center font-medium">
-                        ⚡ In-app live update • No APK reinstall needed
+                        ⚡ In-app live update{updateInfo.bundleSizeBytes ? ` (~${Math.round(updateInfo.bundleSizeBytes / (1024 * 1024))} MB)` : ''} • No APK reinstall needed
                       </p>
                     </div>
                   ) : (
@@ -722,7 +684,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 </div>
 
                 <p className="text-[10px] text-mute text-center italic">
-                  Fetching updated web bundle from GitHub... Please do not close the app.
+                  Fetching updated bundle from GitHub... Download continues smoothly in background.
                 </p>
               </div>
             )}
@@ -772,22 +734,24 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               ) : (
                 <div className="p-2.5 bg-zinc-100 border border-zinc-200 rounded-xl flex items-center gap-2 text-xs text-zinc-700 animate-in fade-in duration-300">
                   <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
-                  <span>You're on the latest build (v{CURRENT_APP_VERSION})! All up to date.</span>
+                  <span>
+                    You&apos;re on the latest build (<span className="font-mono font-semibold">v{CURRENT_APP_VERSION} • {CURRENT_BUILD_COMMIT}</span>)! All up to date.
+                  </span>
                 </div>
               )
             )}
 
             {/* STATUS: ERROR */}
             {updateStatus === 'error' && (
-              <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-2 text-xs text-amber-800 animate-in fade-in duration-300">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <AlertTriangle size={15} className="text-amber-600 shrink-0" />
-                  <span className="truncate">{updateError || 'GitHub check failed.'}</span>
+              <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start justify-between gap-2 text-xs text-amber-800 animate-in fade-in duration-300">
+                <div className="flex items-start gap-1.5 min-w-0">
+                  <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                  <span className="break-words">{updateError || 'GitHub check failed.'}</span>
                 </div>
                 <button
                   type="button"
                   onClick={handleCheckForUpdates}
-                  className="text-primary font-bold hover:underline shrink-0 text-[11px] ml-2"
+                  className="text-primary font-bold hover:underline shrink-0 text-[11px] ml-2 mt-0.5"
                 >
                   Retry
                 </button>

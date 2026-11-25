@@ -8,6 +8,7 @@ export interface AppReleaseInfo {
   name: string;
   notes: string;
   bundleUrl?: string; // Direct OTA bundle zip URL (for live update without installing APK)
+  bundleSizeBytes?: number; // Byte size of bundle.zip for transparent mobile UX
   checksum?: string; // SHA-256 checksum of bundle.zip required by CapgoUpdater
   apkDownloadUrl?: string; // Fallback direct APK link
   publishedAt: string;
@@ -125,6 +126,23 @@ export function compareVersions(v1: string, v2: string): number {
   return 0;
 }
 
+function formatDownloadError(rawMessage?: string): string {
+  const msg = rawMessage || '';
+  if (/insufficient_disk_space/i.test(msg)) {
+    return 'Not enough phone storage space (~500 MB free space needed). Free up some space or download the full APK.';
+  }
+  if (/checksum/i.test(msg)) {
+    return 'Update security verification failed. Please retry or download the full APK.';
+  }
+  if (/timeout|timed out|socket/i.test(msg)) {
+    return 'Download timed out due to slow network. Please try again on Wi-Fi or download the full APK.';
+  }
+  if (/low_mem_fail/i.test(msg)) {
+    return 'Device memory ran low during download. Close other apps and retry.';
+  }
+  return msg || 'Download failed. You can still download the full APK.';
+}
+
 /**
  * Checks GitHub Releases & Commits for the latest HabitSeen Live Updates and APKs
  */
@@ -132,6 +150,7 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
   try {
     // 1. Check official GitHub Releases first for compiled assets
     let latestRelease: any = null;
+    let releaseCheckError: string | null = null;
     try {
       const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
         headers: {
@@ -140,9 +159,14 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
       });
       if (res.ok) {
         latestRelease = await res.json();
+      } else if (res.status !== 404) {
+        releaseCheckError =
+          res.status === 403 || res.status === 429
+            ? 'GitHub API rate limit reached. Please try again in a few minutes.'
+            : `GitHub Releases returned HTTP ${res.status}.`;
       }
-    } catch {
-      // Release check failed, fallback to commits
+    } catch (err: any) {
+      releaseCheckError = err?.message || 'Could not reach GitHub Releases.';
     }
 
     if (latestRelease) {
@@ -184,6 +208,7 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
           name: latestRelease.name || `HabitSeen v${latestTag}`,
           notes: latestRelease.body || 'Includes new features, UI enhancements, and stability improvements.',
           bundleUrl: bundleAsset?.browser_download_url,
+          bundleSizeBytes: typeof bundleAsset?.size === 'number' ? bundleAsset.size : undefined,
           checksum: bundleChecksum || undefined,
           apkDownloadUrl: apkAsset?.browser_download_url || latestRelease.html_url,
           publishedAt: latestRelease.published_at || new Date().toISOString(),
@@ -219,6 +244,13 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
           };
         }
       }
+    } else if (!latestRelease) {
+      // Neither GitHub Releases nor Commits succeeded — surface an error instead of falsely reporting up to date
+      const commitErr =
+        commitRes.status === 403 || commitRes.status === 429
+          ? 'GitHub API rate limit reached. Please try again in a few minutes.'
+          : `GitHub check failed (HTTP ${commitRes.status}).`;
+      throw new Error(releaseCheckError || commitErr);
     }
 
     // 3. App is genuinely up to date
@@ -246,6 +278,7 @@ export async function downloadLiveUpdate(
   checksum?: string,
   onProgress?: (percent: number) => void
 ): Promise<{ success: boolean; error?: string }> {
+  let downloadListener: any = null;
   try {
     // If running in browser (non-native), simulate progress for testing
     if (!Capacitor.isNativePlatform()) {
@@ -263,7 +296,13 @@ export async function downloadLiveUpdate(
       };
     }
 
-    let downloadListener: any = null;
+    if (!checksum) {
+      return {
+        success: false,
+        error: 'Update security checksum is missing. Please download the full APK package.',
+      };
+    }
+
     if (onProgress) {
       try {
         downloadListener = await CapacitorUpdater.addListener('download', (event: any) => {
@@ -280,21 +319,21 @@ export async function downloadLiveUpdate(
     const bundle = await CapacitorUpdater.download({
       url: bundleUrl,
       version: version || 'latest',
-      checksum: checksum || '',
+      checksum,
     });
 
     // Stage bundle to be activated cleanly upon next restart
     await CapacitorUpdater.next({ id: bundle.id });
 
-    if (downloadListener && typeof downloadListener.remove === 'function') {
-      downloadListener.remove();
-    }
-
     onProgress?.(100);
     return { success: true };
   } catch (err: any) {
     console.error('Failed to download live update bundle:', err);
-    return { success: false, error: err?.message || 'Download failed' };
+    return { success: false, error: formatDownloadError(err?.message) };
+  } finally {
+    if (downloadListener && typeof downloadListener.remove === 'function') {
+      Promise.resolve(downloadListener.remove()).catch(() => {});
+    }
   }
 }
 
