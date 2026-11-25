@@ -13,7 +13,7 @@ const config: CapacitorConfig = {
     },
     CapacitorUpdater: {
       autoUpdate: false,
-      resetWhenUpdate: false,
+      resetWhenUpdate: true,
       responseTimeout: 120,
     },
   },
