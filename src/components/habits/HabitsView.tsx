@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
 import { HabitCard } from './HabitCard';
+import { JustTrackingMonthCard } from './JustTrackingMonthCard';
 import { DayStrip } from './DayStrip';
 import { StartingPointBanner } from '../startup/StartingPointBanner';
 import { Habit, Category, FrequencyType } from '../../types/habit';
@@ -203,6 +204,10 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
   );
 
   // If currently selected category was deleted, safely fallback to 'all'
+  const [jtCatFilter, setJtCatFilter] = useState<string>('all');
+  const effectiveJtCatFilter =
+    jtCatFilter === 'all' || categories.some((c) => c.id === jtCatFilter) ? jtCatFilter : 'all';
+
   const isSelectedCategoryValid =
     selectedCatFilter === 'all' ||
     selectedCatFilter === 'cat-archived' ||
@@ -210,20 +215,27 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
     categories.some((c) => c.id === selectedCatFilter);
   const effectiveCatFilter = isSelectedCategoryValid ? selectedCatFilter : 'all';
 
+  const isJustTrackingMode = Boolean(isJustTrackingOnly) || effectiveCatFilter === 'cat-just-tracking';
+
   // Filter habits to display based on whether "Archived", "Just Tracking", or an active category is selected
-  const dueHabits =
-    effectiveCatFilter === 'cat-archived'
-      ? archivedHabits
-      : effectiveCatFilter === 'cat-just-tracking'
-      ? sortHabitsWithPendingOnTop(justTrackingHabits)
-      : sortHabitsWithPendingOnTop(
-          activeHabits.filter((h) => {
-            if (effectiveCatFilter !== 'all' && h.categoryId !== effectiveCatFilter) {
-              return false;
-            }
-            return isHabitDueOnDate(h, selectedDateTime, logs);
-          })
-        );
+  const dueHabits = isJustTrackingOnly
+    ? sortHabitsWithPendingOnTop(
+        justTrackingHabits.filter(
+          (h) => effectiveJtCatFilter === 'all' || h.categoryId === effectiveJtCatFilter
+        )
+      )
+    : effectiveCatFilter === 'cat-archived'
+    ? archivedHabits
+    : effectiveCatFilter === 'cat-just-tracking'
+    ? sortHabitsWithPendingOnTop(justTrackingHabits)
+    : sortHabitsWithPendingOnTop(
+        activeHabits.filter((h) => {
+          if (effectiveCatFilter !== 'all' && h.categoryId !== effectiveCatFilter) {
+            return false;
+          }
+          return isHabitDueOnDate(h, selectedDateTime, logs);
+        })
+      );
 
   // Unique categories list in order
   const uniqueCategories = Array.from(
@@ -546,50 +558,118 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
         </>
       )}
 
-      {/* SECTION HEADER: YOUR HABITS + SEE ALL */}
-      <div className="flex items-center justify-between gap-2 pt-2">
-        <h3 className="font-display font-extrabold text-xl text-zinc-900 tracking-tight">
-          Your tasks
-        </h3>
-        <button
-          type="button"
-          onClick={() => setSelectedCatFilter('all')}
-          className="text-xs font-bold text-zinc-500 hover:text-zinc-900 transition-colors"
-        >
-          See All
-        </button>
-      </div>
+      {/* SECTION HEADER + CATEGORY PILLS */}
+      {isJustTrackingOnly ? (
+        <>
+          {/* CLEAN JUST TRACKING CATEGORY FILTER STRIP */}
+          {justTrackingHabits.length > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+              <button
+                type="button"
+                onClick={() => setJtCatFilter('all')}
+                className={clsx(
+                  'px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border shrink-0 cursor-pointer',
+                  effectiveJtCatFilter === 'all'
+                    ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
+                    : 'bg-surface-card text-charcoal border-hairline hover:bg-surface-bone'
+                )}
+              >
+                All ({justTrackingHabits.length})
+              </button>
 
-      {/* REORDER / ALIGN CATEGORIES BANNER */}
-      {isReorderMode && (
-        <div className="p-2.5 bg-gradient-to-r from-primary/15 via-rose-500/10 to-primary/15 border border-primary/30 rounded-2xl flex items-center justify-between gap-2 shadow-2xs animate-in fade-in">
-          <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center shrink-0">
-              <ArrowLeftRight size={13} />
+              {displayCategories
+                .filter((cat) => justTrackingHabits.some((h) => h.categoryId === cat.id))
+                .map((cat) => {
+                  const isSelected = effectiveJtCatFilter === cat.id;
+                  const Icon =
+                    CATEGORY_ICONS.find((i) => i.id === cat.icon)?.icon || CATEGORY_ICONS[0].icon;
+                  const vibrantColor = boostVibrancy(cat.color);
+                  const iconColor = getContrastIconColor(vibrantColor);
+                  const countInCat = justTrackingHabits.filter((h) => h.categoryId === cat.id).length;
+
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setJtCatFilter(cat.id)}
+                      className={clsx(
+                        'flex items-center gap-1.5 pl-2 pr-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border shrink-0 cursor-pointer',
+                        isSelected
+                          ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
+                          : 'bg-surface-card text-charcoal border-hairline hover:bg-surface-bone'
+                      )}
+                    >
+                      <span
+                        className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: vibrantColor, color: iconColor }}
+                      >
+                        <Icon size={10} strokeWidth={2.5} />
+                      </span>
+                      <span>
+                        {cat.name} ({countInCat})
+                      </span>
+                    </button>
+                  );
+                })}
+            </div>
+          )}
+
+          {/* MONTHLY CALENDAR TOOLBAR HEADER */}
+          <div className="flex items-center justify-between gap-2 py-2 my-1 border-b border-hairline/60">
+            <span className="text-xs font-bold text-charcoal tracking-wide ml-0.5 flex items-center gap-1.5">
+              <Calendar size={14} className="text-purple-600" />
+              <span>Monthly Calendar ({dueHabits.length})</span>
             </span>
-            <span className="text-xs font-bold text-ink">
-              Reorder Mode: Tap arrows &lt; &gt; or drag to align positions
+            <span className="text-[11px] font-medium text-charcoal/70">
+              Tap any date to mark done
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsReorderMode(false)}
-            className="text-xs font-bold bg-primary hover:bg-primary-deep text-white px-3 py-1 rounded-full shadow-xs transition-colors shrink-0"
-          >
-            Done
-          </button>
-        </div>
-      )}
+        </>
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-2 pt-2">
+            <h3 className="font-display font-extrabold text-xl text-zinc-900 tracking-tight">
+              Your tasks
+            </h3>
+            <button
+              type="button"
+              onClick={() => setSelectedCatFilter('all')}
+              className="text-xs font-bold text-zinc-500 hover:text-zinc-900 transition-colors"
+            >
+              See All
+            </button>
+          </div>
 
-      {/* 2. CATEGORY PILLS FILTER BAR (HOLD TO EDIT / RENAME / DELETE) */}
-      <div
-        ref={categoriesScrollRef}
-        {...catScrollEvents}
-        className={clsx(
-          'flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 select-none cursor-grab active:cursor-grabbing',
-          isCatDragging && 'cursor-grabbing'
-        )}
-      >
+          {/* REORDER / ALIGN CATEGORIES BANNER */}
+          {isReorderMode && (
+            <div className="p-2.5 bg-gradient-to-r from-primary/15 via-rose-500/10 to-primary/15 border border-primary/30 rounded-2xl flex items-center justify-between gap-2 shadow-2xs animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center shrink-0">
+                  <ArrowLeftRight size={13} />
+                </span>
+                <span className="text-xs font-bold text-ink">
+                  Reorder Mode: Tap arrows &lt; &gt; or drag to align positions
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsReorderMode(false)}
+                className="text-xs font-bold bg-primary hover:bg-primary-deep text-white px-3 py-1 rounded-full shadow-xs transition-colors shrink-0"
+              >
+                Done
+              </button>
+            </div>
+          )}
+
+          {/* 2. CATEGORY PILLS FILTER BAR (HOLD TO EDIT / RENAME / DELETE) */}
+          <div
+            ref={categoriesScrollRef}
+            {...catScrollEvents}
+            className={clsx(
+              'flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 select-none cursor-grab active:cursor-grabbing',
+              isCatDragging && 'cursor-grabbing'
+            )}
+          >
         <button
           onClick={() => setSelectedCatFilter('all')}
           className={clsx(
@@ -776,9 +856,11 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
           <span>{isReorderMode ? 'Done' : 'Align'}</span>
         </button>
       </div>
+        </>
+      )}
 
       {/* 100% PERFECT DAY CELEBRATION FLOATING TOAST */}
-      {showPerfectDayToast && (
+      {!isJustTrackingOnly && showPerfectDayToast && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-ink/95 text-white text-xs sm:text-sm font-semibold px-4 sm:px-5 py-2.5 rounded-full shadow-2xl border border-amber-400/50 flex items-center gap-2.5 animate-in slide-in-from-top-4 duration-300">
           <Sparkles size={16} className="text-amber-400 shrink-0" />
           <span>🎉 <strong>100% Perfect Day!</strong> +100 Bonus Willpower XP Awarded! ⚡</span>
@@ -786,7 +868,7 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
       )}
 
       {/* 100% PERFECT DAY CELEBRATION BANNER */}
-      {isAllCompletedToday && (
+      {!isJustTrackingOnly && isAllCompletedToday && (
         <div className="p-3.5 sm:p-4 bg-gradient-to-r from-emerald-500/15 via-amber-500/15 to-emerald-500/15 border-2 border-emerald-500/40 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm animate-in fade-in duration-300">
           <div className="flex items-center gap-3 min-w-0">
             <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
@@ -810,61 +892,64 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
         </div>
       )}
 
-      {/* 3. TOOLBAR: HABITS COUNT & VIEW MODE SWITCHER (GRID VS LIST) - Clean & Un-congested (Pic 3) */}
-      <div className="flex items-center justify-between gap-2 py-2 sm:py-2.5 my-1 border-b border-hairline/60">
-        <span className="text-xs font-bold text-charcoal tracking-wide ml-0.5 flex items-center gap-1.5">
-          {effectiveCatFilter === 'cat-archived' ? (
-            <>
-              <Archive size={14} className="text-emerald-600" />
-              <span>Archived ({dueHabits.length})</span>
-            </>
-          ) : effectiveCatFilter === 'cat-just-tracking' ? (
-            <>
-              <Sparkles size={14} className="text-purple-600" />
-              <span>Just Tracking ({dueHabits.length})</span>
-            </>
-          ) : effectiveCatFilter === 'all' ? (
-            <span>All Tasks ({dueHabits.length})</span>
-          ) : (
-            <span>
-              {categories.find((c) => c.id === effectiveCatFilter)?.name || 'Category'} ({dueHabits.length})
-            </span>
+      {/* 3. TOOLBAR: HABITS COUNT & VIEW MODE SWITCHER (GRID VS LIST) - Hidden on dedicated Just Tracking screen */}
+      {!isJustTrackingOnly && (
+        <div className="flex items-center justify-between gap-2 py-2 sm:py-2.5 my-1 border-b border-hairline/60">
+          <span className="text-xs font-bold text-charcoal tracking-wide ml-0.5 flex items-center gap-1.5">
+            {effectiveCatFilter === 'cat-archived' ? (
+              <>
+                <Archive size={14} className="text-emerald-600" />
+                <span>Archived ({dueHabits.length})</span>
+              </>
+            ) : effectiveCatFilter === 'cat-just-tracking' ? (
+              <>
+                <Sparkles size={14} className="text-purple-600" />
+                <span>Just Tracking · Monthly ({dueHabits.length})</span>
+              </>
+            ) : effectiveCatFilter === 'all' ? (
+              <span>All Tasks ({dueHabits.length})</span>
+            ) : (
+              <span>
+                {categories.find((c) => c.id === effectiveCatFilter)?.name || 'Category'} ({dueHabits.length})
+              </span>
+            )}
+          </span>
+
+          {!isJustTrackingMode && (
+            <div className="flex items-center bg-surface-card p-1 rounded-full border border-hairline shadow-2xs">
+              <button
+                type="button"
+                onClick={() => handleSetViewMode('grid')}
+                className={clsx(
+                  'flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold transition-all',
+                  viewMode === 'grid'
+                    ? 'bg-ink text-white shadow-2xs'
+                    : 'text-charcoal hover:text-ink'
+                )}
+                title="Grid View"
+              >
+                <LayoutGrid size={13} />
+                <span>Grid</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSetViewMode('list')}
+                className={clsx(
+                  'flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold transition-all',
+                  viewMode === 'list'
+                    ? 'bg-ink text-white shadow-2xs'
+                    : 'text-charcoal hover:text-ink'
+                )}
+                title="Horizontal List View"
+              >
+                <List size={13} />
+                <span>List</span>
+              </button>
+            </div>
           )}
-        </span>
-
-        {/* View Mode Switcher: Grid vs List (Short, clean labels) */}
-        <div className="flex items-center bg-surface-card p-1 rounded-full border border-hairline shadow-2xs">
-          <button
-            type="button"
-            onClick={() => handleSetViewMode('grid')}
-            className={clsx(
-              'flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold transition-all',
-              viewMode === 'grid'
-                ? 'bg-ink text-white shadow-2xs'
-                : 'text-charcoal hover:text-ink'
-            )}
-            title="Grid View"
-          >
-            <LayoutGrid size={13} />
-            <span>Grid</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleSetViewMode('list')}
-            className={clsx(
-              'flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold transition-all',
-              viewMode === 'list'
-                ? 'bg-ink text-white shadow-2xs'
-                : 'text-charcoal hover:text-ink'
-            )}
-            title="Horizontal List View"
-          >
-            <List size={13} />
-            <span>List</span>
-          </button>
         </div>
-      </div>
+      )}
 
       {/* 4. HABITS LIST (GRID OR HORIZONTAL ROWS) */}
       {dueHabits.length === 0 ? (
@@ -898,7 +983,15 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
           </p>
 
           <div className="flex items-center justify-center gap-2.5 mt-5 flex-wrap">
-            {effectiveCatFilter !== 'all' && (
+            {isJustTrackingOnly && effectiveJtCatFilter !== 'all' ? (
+              <Button
+                variant="outline"
+                size="md"
+                onClick={() => setJtCatFilter('all')}
+              >
+                Show All Just Tracking ({justTrackingHabits.length})
+              </Button>
+            ) : !isJustTrackingOnly && effectiveCatFilter !== 'all' ? (
               <Button
                 variant="outline"
                 size="md"
@@ -906,9 +999,9 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
               >
                 Back to All Habits ({activeHabits.length})
               </Button>
-            )}
+            ) : null}
 
-            {effectiveCatFilter === 'cat-just-tracking' ? (
+            {isJustTrackingMode ? (
               <Button
                 onClick={() => {
                   if (onOpenCreateHabitWithFrequency) {
@@ -957,6 +1050,20 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
               </>
             )}
           </div>
+        </div>
+      ) : isJustTrackingMode ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {dueHabits.map((habit, habitIdx, arr) => (
+            <JustTrackingMonthCard
+              key={habit.id}
+              habit={habit}
+              onOpenDetails={onOpenHabitDetails}
+              onMoveUp={() => handleMoveHabit(habit.id, 'up')}
+              onMoveDown={() => handleMoveHabit(habit.id, 'down')}
+              isFirst={habitIdx === 0}
+              isLast={habitIdx === arr.length - 1}
+            />
+          ))}
         </div>
       ) : (
         <div

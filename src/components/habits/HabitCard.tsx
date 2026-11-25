@@ -4,27 +4,18 @@ import { useAppStore } from '../../stores/useAppStore';
 import { CATEGORY_ICONS } from '../../constants/iconsAndColors';
 import { format, parseISO } from 'date-fns';
 import { useTodayKey } from '../../hooks/useTodayKey';
-import { hasSecurityGuard } from '../../utils/cryptoUtils';
 import {
   Check,
+  Edit2,
   Flame,
   MoreVertical,
   Flag,
   Calendar,
-  Edit2,
-  Copy,
-  Archive,
-  Trash2,
-  AlertTriangle,
-  ArrowUp,
-  ArrowDown,
 } from 'lucide-react';
 import clsx from 'clsx';
 import confetti from 'canvas-confetti';
 import { computeHabitStreaks } from '../../utils/streakEngine';
-import { Modal } from '../ui/Modal';
-import { Button } from '../ui/Button';
-import { SecurityModal } from '../security/SecurityModal';
+import { HabitActionsModal } from './HabitActionsModal';
 
 interface HabitCardProps {
   habit: Habit;
@@ -47,7 +38,7 @@ export const HabitCard: React.FC<HabitCardProps> = ({
   isFirst,
   isLast,
 }) => {
-  const { categories, logs, logHabit, addHabit, toggleArchiveHabit, deleteHabit, user } = useAppStore();
+  const { categories, logs, logHabit } = useAppStore();
 
   const category = categories.find((c) => c.id === habit.categoryId);
   const CategoryIcon =
@@ -76,10 +67,8 @@ export const HabitCard: React.FC<HabitCardProps> = ({
   const streakInfo = computeHabitStreaks(habit, logs);
   const currentStreak = streakInfo.currentStreak;
 
-  // Options Menu & Modal States
+  // Options Menu State
   const [isOptionsMenuOpen, setIsOptionsMenuOpen] = useState(false);
-  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
-  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
 
   // Touch-hold (450ms) Detection
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -142,51 +131,6 @@ export const HabitCard: React.FC<HabitCardProps> = ({
     }
     confetti({ particleCount: 45, spread: 60, origin: { y: 0.7 } });
     logHabit(habit.id, dateKey, { valueYesNo: true });
-  };
-
-  // DUPLICATE ACTION
-  const handleDuplicate = async () => {
-    try {
-      const { id, createdAt, updatedAt, stats, ...habitData } = habit;
-      await addHabit({
-        ...habitData,
-        name: `${habit.name} (Copy)`,
-      });
-      confetti({ particleCount: 35, spread: 55, origin: { y: 0.7 } });
-      setIsOptionsMenuOpen(false);
-    } catch (err) {
-      console.error('Failed to duplicate habit', err);
-    }
-  };
-
-  // ARCHIVE ACTION
-  const handleArchive = async () => {
-    try {
-      await toggleArchiveHabit(habit.id);
-      setIsOptionsMenuOpen(false);
-    } catch (err) {
-      console.error('Failed to archive habit', err);
-    }
-  };
-
-  // DELETE ACTION
-  const handleDeleteRequest = () => {
-    setIsOptionsMenuOpen(false);
-    if (hasSecurityGuard(user)) {
-      setIsSecurityModalOpen(true);
-    } else {
-      setIsConfirmDeleteOpen(true);
-    }
-  };
-
-  const handleSecuritySuccess = async () => {
-    setIsSecurityModalOpen(false);
-    await deleteHabit(habit.id);
-  };
-
-  const handleConfirmDelete = async () => {
-    setIsConfirmDeleteOpen(false);
-    await deleteHabit(habit.id);
   };
 
   // Calculate Progress Percentage for Progress Bar
@@ -465,195 +409,17 @@ export const HabitCard: React.FC<HabitCardProps> = ({
         )}
       </div>
 
-      {/* -------------------- HABIT HOLD ACTIONS MODAL -------------------- */}
-      <Modal
+      <HabitActionsModal
+        habit={habit}
+        subtitle={currentStreak > 0 ? `${currentStreak}d Streak` : 'Day 1'}
         isOpen={isOptionsMenuOpen}
         onClose={() => setIsOptionsMenuOpen(false)}
-        title="Habit Actions"
-      >
-        <div className="space-y-4">
-          <div className="flex items-center gap-3 p-3 bg-zinc-50 rounded-2xl border border-zinc-200/60">
-            <div className="w-10 h-10 rounded-xl bg-white text-zinc-800 flex items-center justify-center shrink-0 border border-zinc-200/80 shadow-2xs">
-              <CategoryIcon size={20} strokeWidth={2.2} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h4 className="font-display font-bold text-sm text-zinc-900 truncate">
-                {habit.name}
-              </h4>
-              <p className="text-xs text-zinc-500">
-                {category?.name || 'Habit'} · {currentStreak > 0 ? `${currentStreak}d Streak` : 'Day 1'}
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            {onMoveUp && !isFirst && (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOptionsMenuOpen(false);
-                  onMoveUp();
-                }}
-                className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-zinc-50 hover:bg-zinc-100 text-zinc-800 font-semibold text-sm transition-colors text-left border border-zinc-200/50"
-              >
-                <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">
-                  <ArrowUp size={16} />
-                </div>
-                <div className="flex-1">
-                  <span className="block font-bold">Move Up</span>
-                  <span className="block text-xs text-zinc-500 font-normal">
-                    Shift habit higher in your daily order
-                  </span>
-                </div>
-              </button>
-            )}
-
-            {onMoveDown && !isLast && (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOptionsMenuOpen(false);
-                  onMoveDown();
-                }}
-                className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-zinc-50 hover:bg-zinc-100 text-zinc-800 font-semibold text-sm transition-colors text-left border border-zinc-200/50"
-              >
-                <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">
-                  <ArrowDown size={16} />
-                </div>
-                <div className="flex-1">
-                  <span className="block font-bold">Move Down</span>
-                  <span className="block text-xs text-zinc-500 font-normal">
-                    Shift habit lower in your daily order
-                  </span>
-                </div>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={handleDuplicate}
-              className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-zinc-50 hover:bg-zinc-100 text-zinc-800 font-semibold text-sm transition-colors text-left border border-zinc-200/50"
-            >
-              <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
-                <Copy size={16} />
-              </div>
-              <div className="flex-1">
-                <span className="block font-bold">Duplicate Habit</span>
-                <span className="block text-xs text-zinc-500 font-normal">
-                  Create a copy with same schedule & tracking rules
-                </span>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setIsOptionsMenuOpen(false);
-                onOpenDetails(habit);
-              }}
-              className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-zinc-50 hover:bg-zinc-100 text-zinc-800 font-semibold text-sm transition-colors text-left border border-zinc-200/50"
-            >
-              <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-                <Edit2 size={16} />
-              </div>
-              <div className="flex-1">
-                <span className="block font-bold">Edit Habit Details</span>
-                <span className="block text-xs text-zinc-500 font-normal">
-                  Modify title, reminders, and target frequency
-                </span>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleArchive}
-              className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-zinc-50 hover:bg-zinc-100 text-zinc-800 font-semibold text-sm transition-colors text-left border border-zinc-200/50"
-            >
-              <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-                <Archive size={16} />
-              </div>
-              <div className="flex-1">
-                <span className="block font-bold">
-                  {habit.isArchived ? 'Unarchive Habit' : 'Archive Habit'}
-                </span>
-                <span className="block text-xs text-zinc-500 font-normal">
-                  {habit.isArchived
-                    ? 'Restore habit to active dashboard'
-                    : 'Hide from dashboard while preserving streak logs'}
-                </span>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDeleteRequest}
-              className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-sm transition-colors text-left border border-rose-200/50"
-            >
-              <div className="w-8 h-8 rounded-xl bg-rose-200 text-rose-800 flex items-center justify-center shrink-0">
-                <Trash2 size={16} />
-              </div>
-              <div className="flex-1">
-                <span className="block font-bold">Delete Habit</span>
-                <span className="block text-xs text-rose-600 font-normal">
-                  Permanently remove this habit and all history
-                </span>
-              </div>
-            </button>
-          </div>
-
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => setIsOptionsMenuOpen(false)}
-          >
-            Cancel
-          </Button>
-        </div>
-      </Modal>
-
-      {/* -------------------- CONFIRM DELETE MODAL -------------------- */}
-      <Modal
-        isOpen={isConfirmDeleteOpen}
-        onClose={() => setIsConfirmDeleteOpen(false)}
-        title="Delete Habit"
-      >
-        <div className="space-y-4">
-          <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200 text-rose-800 flex items-start gap-3">
-            <AlertTriangle size={20} className="shrink-0 text-rose-600 mt-0.5" />
-            <p className="text-sm">
-              Are you sure you want to permanently delete <strong>{habit.name}</strong>? This action cannot be undone.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => setIsConfirmDeleteOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              className="flex-1"
-              onClick={handleConfirmDelete}
-            >
-              Delete
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* -------------------- SECURITY GUARD MODAL -------------------- */}
-      {isSecurityModalOpen && (
-        <SecurityModal
-          isOpen={isSecurityModalOpen}
-          onClose={() => setIsSecurityModalOpen(false)}
-          onSuccess={handleSecuritySuccess}
-          title="Security Authorization Required"
-          actionTitle={`Delete Habit: ${habit.name}`}
-          isDanger
-        />
-      )}
+        onOpenDetails={onOpenDetails}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+        isFirst={isFirst}
+        isLast={isLast}
+      />
     </>
   );
 };
