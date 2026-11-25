@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
 import { Button } from '../ui/Button';
 import { logOut } from '../../services/firebase';
@@ -41,6 +41,18 @@ export const Navbar: React.FC<NavbarProps> = ({
   const totalXp = user?.gamification?.totalXp ?? 0;
   const userName = user?.onboarding?.name || currentUser?.displayName || 'Esther Howard';
   const avatarUrl = user?.avatarUrl || currentUser?.photoURL;
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
+
+  useEffect(() => {
+    setAvatarLoadError(false);
+  }, [avatarUrl]);
+
+  const userInitials = userName
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('');
 
   return (
     <>
@@ -52,15 +64,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={handleOpenProfile}
             className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer text-left"
           >
-            {avatarUrl ? (
+            {avatarUrl && !avatarLoadError ? (
               <img
                 src={avatarUrl}
                 alt={userName}
-                className="w-11 h-11 rounded-full object-cover border-2 border-white shadow-sm"
+                referrerPolicy="no-referrer"
+                onError={() => setAvatarLoadError(true)}
+                className="w-11 h-11 rounded-full object-cover border-2 border-white shadow-sm shrink-0"
               />
             ) : (
-              <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-amber-200 to-rose-200 text-ink flex items-center justify-center font-bold text-sm border-2 border-white shadow-sm">
-                <UserIcon size={20} className="text-zinc-700" />
+              <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-amber-200 to-rose-200 text-ink flex items-center justify-center font-display font-bold text-sm border-2 border-white shadow-sm shrink-0">
+                {userInitials || <UserIcon size={20} className="text-zinc-700" />}
               </div>
             )}
             <div>
