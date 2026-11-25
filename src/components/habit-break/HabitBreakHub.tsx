@@ -33,7 +33,10 @@ import { SecurityModal } from '../security/SecurityModal';
 import {
   getTemplatePicList,
   getTemplatePicUrl,
+  getTemplateCategoryMeta,
+  TEMPLATE_PIC_CATEGORIES,
   TemplatePic,
+  TemplatePicCategoryId,
 } from '../../utils/templatePics';
 
 export const HabitBreakHub: React.FC = () => {
@@ -54,6 +57,7 @@ export const HabitBreakHub: React.FC = () => {
   // Form State
   const templateList = getTemplatePicList();
   const [templateSearch, setTemplateSearch] = useState('');
+  const [selectedTemplateCategory, setSelectedTemplateCategory] = useState<'all' | TemplatePicCategoryId>('all');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState(categories[0]?.id || 'cat-others');
@@ -92,6 +96,8 @@ export const HabitBreakHub: React.FC = () => {
       setCustomStartTime(format(now, 'HH:mm'));
       setStartMode('now');
       setVisualMode('template');
+      setTemplateSearch('');
+      setSelectedTemplateCategory('all');
       setCategoryId(categories[0]?.id || 'cat-others');
       setError('');
       if (templateList.length > 0 && !selectedTemplate) {
@@ -677,7 +683,7 @@ export const HabitBreakHub: React.FC = () => {
                     type="text"
                     value={templateSearch}
                     onChange={(e) => setTemplateSearch(e.target.value)}
-                    placeholder="Search e.g. chai, roti, coffee, momos, burger..."
+                    placeholder="Search e.g. pasta, chocolate, cold drink, nail, snap, loan..."
                     className="w-full bg-surface-bone text-ink text-xs pl-8 pr-7 py-2 rounded-xl border border-hairline focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-charcoal/50"
                   />
                   {templateSearch && (
@@ -691,23 +697,78 @@ export const HabitBreakHub: React.FC = () => {
                   )}
                 </div>
 
+                {/* CLEAR TEMPLATE CATEGORY FILTER PILLS */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTemplateCategory('all')}
+                    className={clsx(
+                      'px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap shrink-0 transition-all cursor-pointer',
+                      selectedTemplateCategory === 'all'
+                        ? 'bg-ink text-white border-ink shadow-2xs'
+                        : 'bg-surface-bone text-charcoal border-hairline hover:border-charcoal/40'
+                    )}
+                  >
+                    All ({templateList.length})
+                  </button>
+                  {TEMPLATE_PIC_CATEGORIES.map((cat) => {
+                    const count = templateList.filter((tpl) => tpl.category === cat.id).length;
+                    if (count === 0) return null;
+                    const isActive = selectedTemplateCategory === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setSelectedTemplateCategory(cat.id)}
+                        className={clsx(
+                          'px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap shrink-0 transition-all cursor-pointer flex items-center gap-1',
+                          isActive
+                            ? 'bg-primary text-white border-primary shadow-2xs'
+                            : 'bg-surface-bone text-charcoal border-hairline hover:border-charcoal/40'
+                        )}
+                      >
+                        <span>{cat.emoji}</span>
+                        <span>{cat.shortLabel}</span>
+                        <span className={clsx('text-[10px] opacity-80', isActive ? 'text-white' : 'text-stone')}>
+                          ({count})
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
                 {(() => {
-                  const filtered = templateList.filter(
-                    (tpl) =>
-                      tpl.name.toLowerCase().includes(templateSearch.toLowerCase().trim()) ||
-                      tpl.fullName.toLowerCase().includes(templateSearch.toLowerCase().trim())
-                  );
+                  const query = templateSearch.toLowerCase().trim();
+                  const filtered = templateList.filter((tpl) => {
+                    const matchesCategory =
+                      selectedTemplateCategory === 'all' || tpl.category === selectedTemplateCategory;
+                    if (!matchesCategory) return false;
+                    if (!query) return true;
+
+                    const catMeta = getTemplateCategoryMeta(tpl.category);
+                    return (
+                      tpl.name.toLowerCase().includes(query) ||
+                      tpl.fullName.toLowerCase().includes(query) ||
+                      catMeta.label.toLowerCase().includes(query) ||
+                      tpl.keywords.some((kw) => kw.toLowerCase().includes(query))
+                    );
+                  });
 
                   if (filtered.length === 0) {
                     return (
                       <div className="py-8 text-center bg-surface-bone/60 rounded-2xl border border-hairline">
-                        <p className="text-xs text-charcoal">No templates matching "{templateSearch}"</p>
+                        <p className="text-xs text-charcoal">
+                          No templates matching {templateSearch ? `"${templateSearch}"` : 'this filter'}
+                        </p>
                         <button
                           type="button"
-                          onClick={() => setTemplateSearch('')}
+                          onClick={() => {
+                            setTemplateSearch('');
+                            setSelectedTemplateCategory('all');
+                          }}
                           className="mt-2 text-[11px] font-bold text-primary hover:underline"
                         >
-                          Clear search ({templateList.length} available)
+                          Show all ({templateList.length} available)
                         </button>
                       </div>
                     );
@@ -717,6 +778,7 @@ export const HabitBreakHub: React.FC = () => {
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 max-h-72 sm:max-h-80 overflow-y-auto p-1">
                       {filtered.map((tpl) => {
                         const isSelected = selectedTemplate === tpl.id;
+                        const catMeta = getTemplateCategoryMeta(tpl.category);
                         return (
                           <div
                             key={tpl.id}
@@ -727,7 +789,7 @@ export const HabitBreakHub: React.FC = () => {
                                 ? 'border-primary ring-2 ring-primary ring-offset-2 scale-[1.02] shadow-sm'
                                 : 'border-hairline hover:border-charcoal/40 bg-surface-bone'
                             )}
-                            title={`${tpl.name} (${tpl.fullName})`}
+                            title={`${tpl.name} • ${catMeta.label}`}
                           >
                             <img
                               src={tpl.url}
@@ -735,6 +797,9 @@ export const HabitBreakHub: React.FC = () => {
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                               loading="lazy"
                             />
+                            <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full bg-white/90 backdrop-blur-xs text-[10px] leading-none shadow-2xs border border-black/5">
+                              {catMeta.emoji}
+                            </span>
                             {isSelected && (
                               <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center shadow-xs z-10">
                                 <Check size={12} strokeWidth={3} />

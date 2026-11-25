@@ -1,5 +1,5 @@
-// Explicit direct imports for all 20 curated template pictures
-// This guarantees 100% build reliability on all platforms (Windows, Linux, Vercel, PWA)
+// Explicit direct imports for all 29 curated template pictures
+// This guarantees 100% build reliability on all platforms (Windows, Linux, Vercel, PWA, Android APK)
 import imgAfghaniChaap from '../template-pics/Cartoon Afghani Chaap Platter.webp';
 import imgBurger from '../template-pics/Cartoon Burger Sticker Icon.webp';
 import imgCholeBhature from '../template-pics/Cartoon Chole Bhature Plate.webp';
@@ -8,22 +8,51 @@ import imgChowMein from '../template-pics/Chopsticks Lifting Savory Chow Mein.we
 import imgVadaPav from '../template-pics/Classic Vada Pav Plate.webp';
 import imgSoda from '../template-pics/Colorful Soda Can and Glass Collection.webp';
 import imgMalaiChaap from '../template-pics/Creamy Malai Chaap Platter.webp';
+import imgPasta from '../template-pics/Creamy Mushroom Penne with Herbs.webp';
 import imgRumaliRoti from '../template-pics/Flaky Romali Roti with Onion Garnish.webp';
 import imgFreeFire from '../template-pics/Free Fire Battle Emblem.webp';
 import imgAdult18 from '../template-pics/Glossy 18+ Restriction Badge.webp';
 import imgChilliPotato from '../template-pics/Glossy Chilli Potato Plate.webp';
+import imgChocolateBar from '../template-pics/Glossy Chocolate Bar Stack with Green Leaves.webp';
 import imgChocolateCake from '../template-pics/Glossy Chocolate Cake Slice on Plate.webp';
 import imgSpermSwarm from '../template-pics/Glossy Sperm Swarm Illustration.webp';
 import imgMcPuff from '../template-pics/Golden McPuff with Savory Filling.webp';
 import imgSamosa from '../template-pics/Golden Samosas with Green Chutney.webp';
-import imgNoLust from '../template-pics/No Lust Lips Sticker.webp';
-import imgPaneerWrap from '../template-pics/Paneer Wraps with Green Chutney.webp';
-import imgSteamedMomos from '../template-pics/Steamed Momos with Spicy Chutney.webp';
-import imgTandooriMomos from '../template-pics/Tandoori Momos with Chutneys and Paneer.webp';
 import imgLavaCake from '../template-pics/Molten Chocolate Lava Cake Delight.webp';
+import imgNoLust from '../template-pics/No Lust Lips Sticker.webp';
+import imgNoMoneyLoan from '../template-pics/No Money Loan Icon.webp';
+import imgNoSnapRequest from '../template-pics/No Snap Send Request.webp';
+import imgPaneerWrap from '../template-pics/Paneer Wraps with Green Chutney.webp';
+import imgNailClipper from '../template-pics/Shiny Stainless Steel Nail Clipper.webp';
 import imgRoti from '../template-pics/Stacked Rotis with Cilantro Garnish.webp';
+import imgSteamedMomos from '../template-pics/Steamed Momos with Spicy Chutney.webp';
 import imgChai from '../template-pics/Steaming Chai with Spices and Ginger.webp';
 import imgCoffee from '../template-pics/Steaming Latte with Coffee Beans.webp';
+import imgTandooriMomos from '../template-pics/Tandoori Momos with Chutneys and Paneer.webp';
+
+export type TemplatePicCategoryId =
+  | 'fast-food'
+  | 'drinks'
+  | 'sweets'
+  | 'meals'
+  | 'timepass'
+  | 'self-control';
+
+export interface TemplatePicCategoryMeta {
+  id: TemplatePicCategoryId;
+  label: string;
+  shortLabel: string;
+  emoji: string;
+}
+
+export const TEMPLATE_PIC_CATEGORIES: TemplatePicCategoryMeta[] = [
+  { id: 'fast-food', label: 'Fast Food & Street', shortLabel: 'Fast Food', emoji: '🍔' },
+  { id: 'drinks', label: 'Cold Drinks & Chai', shortLabel: 'Cold Drinks', emoji: '🥤' },
+  { id: 'sweets', label: 'Sweets & Chocolate', shortLabel: 'Sweets', emoji: '🍫' },
+  { id: 'meals', label: 'Meals & Roti', shortLabel: 'Meals', emoji: '🫓' },
+  { id: 'timepass', label: 'Timepass & Lifestyle', shortLabel: 'Timepass', emoji: '🎮' },
+  { id: 'self-control', label: 'Self-Control (18+)', shortLabel: '18+ Control', emoji: '🔞' },
+];
 
 export interface TemplatePic {
   id: string; // filename identifier e.g. "Creamy Malai Chaap Platter.webp"
@@ -31,209 +60,271 @@ export interface TemplatePic {
   fullName: string; // full original filename without extension
   url: string; // resolved Vite asset URL
   filename: string;
+  category: TemplatePicCategoryId;
+  keywords: string[];
 }
 
-// User-curated short, clean names for template pictures
-const SHORT_NAME_MAP: Record<string, string> = {
-  'Creamy Malai Chaap Platter': 'Malai Chaap',
-  'Cartoon Afghani Chaap Platter': 'Afghani Chaap',
-  'Cartoon Burger Sticker Icon': 'Burger',
-  'Cartoon Chole Bhature Plate': 'Chole Bhature',
-  'Cartoon Dosa Thali with Chutneys': 'Dosa',
-  'Chopsticks Lifting Savory Chow Mein': 'Chow Mein',
-  'Classic Vada Pav Plate': 'Vada Pav',
-  'Colorful Soda Can and Glass Collection': 'Soda & Cold Drinks',
-  'Flaky Romali Roti with Onion Garnish': 'Rumali Roti',
-  'Free Fire Battle Emblem': 'Free Fire',
-  'Glossy 18+ Restriction Badge': '18+ Adult Content',
-  'Glossy Chilli Potato Plate': 'Chilli Potato',
-  'Glossy Chocolate Cake Slice on Plate': 'Pastry & Cake',
-  'Glossy Sperm Swarm Illustration': 'NoFap / Masturbation',
-  'Golden McPuff with Savory Filling': 'Pizza McPuff',
-  'Golden Samosas with Green Chutney': 'Samosa',
-  'No Lust Lips Sticker': 'No Lust / Control',
-  'Paneer Wraps with Green Chutney': 'Paneer Wrap',
-  'Steamed Momos with Spicy Chutney': 'Steamed Momos',
-  'Tandoori Momos with Chutneys and Paneer': 'Tandoori Momos',
-  'Molten Chocolate Lava Cake Delight': 'Choco Lava Cake',
-  'Stacked Rotis with Cilantro Garnish': 'Roti / Chapati',
-  'Steaming Chai with Spices and Ginger': 'Chai / Tea',
-  'Steaming Latte with Coffee Beans': 'Coffee / Latte',
-};
+interface StaticTemplateSeed {
+  filename: string;
+  name: string;
+  url: string;
+  category: TemplatePicCategoryId;
+  keywords: string[];
+}
 
-/**
- * Static baseline of the 20 pictures
- */
-const STATIC_TEMPLATE_PICS: TemplatePic[] = [
+const STATIC_TEMPLATE_SEEDS: StaticTemplateSeed[] = [
+  // 1. Fast Food & Street
   {
-    id: 'Creamy Malai Chaap Platter.webp',
-    filename: 'Creamy Malai Chaap Platter.webp',
-    fullName: 'Creamy Malai Chaap Platter',
-    name: 'Malai Chaap',
-    url: imgMalaiChaap,
-  },
-  {
-    id: 'Cartoon Afghani Chaap Platter.webp',
-    filename: 'Cartoon Afghani Chaap Platter.webp',
-    fullName: 'Cartoon Afghani Chaap Platter',
-    name: 'Afghani Chaap',
-    url: imgAfghaniChaap,
-  },
-  {
-    id: 'Cartoon Burger Sticker Icon.webp',
     filename: 'Cartoon Burger Sticker Icon.webp',
-    fullName: 'Cartoon Burger Sticker Icon',
     name: 'Burger',
     url: imgBurger,
+    category: 'fast-food',
+    keywords: ['burger', 'fast food', 'junk', 'mcdonalds', 'fries', 'cheat meal'],
   },
   {
-    id: 'Cartoon Chole Bhature Plate.webp',
-    filename: 'Cartoon Chole Bhature Plate.webp',
-    fullName: 'Cartoon Chole Bhature Plate',
-    name: 'Chole Bhature',
-    url: imgCholeBhature,
+    filename: 'Creamy Mushroom Penne with Herbs.webp',
+    name: 'Pasta / Penne',
+    url: imgPasta,
+    category: 'fast-food',
+    keywords: ['pasta', 'penne', 'white sauce', 'mushroom', 'macaroni', 'fast food', 'junk'],
   },
   {
-    id: 'Cartoon Dosa Thali with Chutneys.webp',
-    filename: 'Cartoon Dosa Thali with Chutneys.webp',
-    fullName: 'Cartoon Dosa Thali with Chutneys',
-    name: 'Dosa',
-    url: imgDosa,
-  },
-  {
-    id: 'Chopsticks Lifting Savory Chow Mein.webp',
     filename: 'Chopsticks Lifting Savory Chow Mein.webp',
-    fullName: 'Chopsticks Lifting Savory Chow Mein',
     name: 'Chow Mein',
     url: imgChowMein,
+    category: 'fast-food',
+    keywords: ['chow mein', 'noodles', 'hakka', 'chinese', 'street food', 'fast food'],
   },
   {
-    id: 'Classic Vada Pav Plate.webp',
-    filename: 'Classic Vada Pav Plate.webp',
-    fullName: 'Classic Vada Pav Plate',
-    name: 'Vada Pav',
-    url: imgVadaPav,
-  },
-  {
-    id: 'Colorful Soda Can and Glass Collection.webp',
-    filename: 'Colorful Soda Can and Glass Collection.webp',
-    fullName: 'Colorful Soda Can and Glass Collection',
-    name: 'Soda & Cold Drinks',
-    url: imgSoda,
-  },
-  {
-    id: 'Flaky Romali Roti with Onion Garnish.webp',
-    filename: 'Flaky Romali Roti with Onion Garnish.webp',
-    fullName: 'Flaky Romali Roti with Onion Garnish',
-    name: 'Rumali Roti',
-    url: imgRumaliRoti,
-  },
-  {
-    id: 'Free Fire Battle Emblem.webp',
-    filename: 'Free Fire Battle Emblem.webp',
-    fullName: 'Free Fire Battle Emblem',
-    name: 'Free Fire',
-    url: imgFreeFire,
-  },
-  {
-    id: 'Glossy 18+ Restriction Badge.webp',
-    filename: 'Glossy 18+ Restriction Badge.webp',
-    fullName: 'Glossy 18+ Restriction Badge',
-    name: '18+ Adult Content',
-    url: imgAdult18,
-  },
-  {
-    id: 'Glossy Chilli Potato Plate.webp',
-    filename: 'Glossy Chilli Potato Plate.webp',
-    fullName: 'Glossy Chilli Potato Plate',
-    name: 'Chilli Potato',
-    url: imgChilliPotato,
-  },
-  {
-    id: 'Glossy Chocolate Cake Slice on Plate.webp',
-    filename: 'Glossy Chocolate Cake Slice on Plate.webp',
-    fullName: 'Glossy Chocolate Cake Slice on Plate',
-    name: 'Pastry & Cake',
-    url: imgChocolateCake,
-  },
-  {
-    id: 'Glossy Sperm Swarm Illustration.webp',
-    filename: 'Glossy Sperm Swarm Illustration.webp',
-    fullName: 'Glossy Sperm Swarm Illustration',
-    name: 'NoFap / Masturbation',
-    url: imgSpermSwarm,
-  },
-  {
-    id: 'Golden McPuff with Savory Filling.webp',
-    filename: 'Golden McPuff with Savory Filling.webp',
-    fullName: 'Golden McPuff with Savory Filling',
-    name: 'Pizza McPuff',
-    url: imgMcPuff,
-  },
-  {
-    id: 'Golden Samosas with Green Chutney.webp',
-    filename: 'Golden Samosas with Green Chutney.webp',
-    fullName: 'Golden Samosas with Green Chutney',
-    name: 'Samosa',
-    url: imgSamosa,
-  },
-  {
-    id: 'No Lust Lips Sticker.webp',
-    filename: 'No Lust Lips Sticker.webp',
-    fullName: 'No Lust Lips Sticker',
-    name: 'No Lust / Control',
-    url: imgNoLust,
-  },
-  {
-    id: 'Paneer Wraps with Green Chutney.webp',
-    filename: 'Paneer Wraps with Green Chutney.webp',
-    fullName: 'Paneer Wraps with Green Chutney',
-    name: 'Paneer Wrap',
-    url: imgPaneerWrap,
-  },
-  {
-    id: 'Steamed Momos with Spicy Chutney.webp',
     filename: 'Steamed Momos with Spicy Chutney.webp',
-    fullName: 'Steamed Momos with Spicy Chutney',
     name: 'Steamed Momos',
     url: imgSteamedMomos,
+    category: 'fast-food',
+    keywords: ['momos', 'dumplings', 'steamed', 'street food', 'fast food'],
   },
   {
-    id: 'Tandoori Momos with Chutneys and Paneer.webp',
     filename: 'Tandoori Momos with Chutneys and Paneer.webp',
-    fullName: 'Tandoori Momos with Chutneys and Paneer',
     name: 'Tandoori Momos',
     url: imgTandooriMomos,
+    category: 'fast-food',
+    keywords: ['tandoori momos', 'momos', 'street food', 'fast food', 'fried'],
   },
   {
-    id: 'Molten Chocolate Lava Cake Delight.webp',
-    filename: 'Molten Chocolate Lava Cake Delight.webp',
-    fullName: 'Molten Chocolate Lava Cake Delight',
-    name: 'Choco Lava Cake',
-    url: imgLavaCake,
+    filename: 'Glossy Chilli Potato Plate.webp',
+    name: 'Chilli Potato',
+    url: imgChilliPotato,
+    category: 'fast-food',
+    keywords: ['chilli potato', 'honey chilli', 'fries', 'street food', 'fast food'],
   },
   {
-    id: 'Stacked Rotis with Cilantro Garnish.webp',
-    filename: 'Stacked Rotis with Cilantro Garnish.webp',
-    fullName: 'Stacked Rotis with Cilantro Garnish',
-    name: 'Roti / Chapati',
-    url: imgRoti,
+    filename: 'Golden McPuff with Savory Filling.webp',
+    name: 'Pizza McPuff',
+    url: imgMcPuff,
+    category: 'fast-food',
+    keywords: ['mcpuff', 'pizza', 'puff', 'fast food', 'bakery', 'fried'],
   },
   {
-    id: 'Steaming Chai with Spices and Ginger.webp',
+    filename: 'Golden Samosas with Green Chutney.webp',
+    name: 'Samosa',
+    url: imgSamosa,
+    category: 'fast-food',
+    keywords: ['samosa', 'fried', 'oily', 'snack', 'street food', 'fast food'],
+  },
+  {
+    filename: 'Classic Vada Pav Plate.webp',
+    name: 'Vada Pav',
+    url: imgVadaPav,
+    category: 'fast-food',
+    keywords: ['vada pav', 'street food', 'fried', 'snack', 'fast food'],
+  },
+  {
+    filename: 'Paneer Wraps with Green Chutney.webp',
+    name: 'Paneer Wrap',
+    url: imgPaneerWrap,
+    category: 'fast-food',
+    keywords: ['wrap', 'roll', 'kathi roll', 'paneer', 'fast food', 'street food'],
+  },
+  {
+    filename: 'Creamy Malai Chaap Platter.webp',
+    name: 'Malai Chaap',
+    url: imgMalaiChaap,
+    category: 'fast-food',
+    keywords: ['malai chaap', 'chaap', 'creamy', 'street food', 'fast food'],
+  },
+  {
+    filename: 'Cartoon Afghani Chaap Platter.webp',
+    name: 'Afghani Chaap',
+    url: imgAfghaniChaap,
+    category: 'fast-food',
+    keywords: ['afghani chaap', 'chaap', 'street food', 'fast food'],
+  },
+
+  // 2. Cold Drinks & Chai
+  {
+    filename: 'Colorful Soda Can and Glass Collection.webp',
+    name: 'Soda & Cold Drinks',
+    url: imgSoda,
+    category: 'drinks',
+    keywords: ['soda', 'cold drink', 'coldrink', 'cola', 'coke', 'pepsi', 'soft drink', 'sugar'],
+  },
+  {
     filename: 'Steaming Chai with Spices and Ginger.webp',
-    fullName: 'Steaming Chai with Spices and Ginger',
     name: 'Chai / Tea',
     url: imgChai,
+    category: 'drinks',
+    keywords: ['chai', 'tea', 'caffeine', 'drink', 'beverage', 'sugar'],
   },
   {
-    id: 'Steaming Latte with Coffee Beans.webp',
     filename: 'Steaming Latte with Coffee Beans.webp',
-    fullName: 'Steaming Latte with Coffee Beans',
     name: 'Coffee / Latte',
     url: imgCoffee,
+    category: 'drinks',
+    keywords: ['coffee', 'latte', 'caffeine', 'espresso', 'drink', 'beverage'],
+  },
+
+  // 3. Sweets & Chocolate
+  {
+    filename: 'Glossy Chocolate Bar Stack with Green Leaves.webp',
+    name: 'Chocolate',
+    url: imgChocolateBar,
+    category: 'sweets',
+    keywords: ['chocolate', 'bar', 'cadbury', 'sweet', 'sugar', 'candy', 'dessert'],
+  },
+  {
+    filename: 'Glossy Chocolate Cake Slice on Plate.webp',
+    name: 'Pastry & Cake',
+    url: imgChocolateCake,
+    category: 'sweets',
+    keywords: ['cake', 'pastry', 'bakery', 'sweet', 'sugar', 'dessert'],
+  },
+  {
+    filename: 'Molten Chocolate Lava Cake Delight.webp',
+    name: 'Choco Lava Cake',
+    url: imgLavaCake,
+    category: 'sweets',
+    keywords: ['lava cake', 'chocolate', 'cake', 'dessert', 'sweet', 'sugar'],
+  },
+
+  // 4. Meals & Roti
+  {
+    filename: 'Cartoon Chole Bhature Plate.webp',
+    name: 'Chole Bhature',
+    url: imgCholeBhature,
+    category: 'meals',
+    keywords: ['chole bhature', 'bhature', 'heavy meal', 'oily', 'lunch', 'cheat meal'],
+  },
+  {
+    filename: 'Cartoon Dosa Thali with Chutneys.webp',
+    name: 'Dosa',
+    url: imgDosa,
+    category: 'meals',
+    keywords: ['dosa', 'south indian', 'thali', 'meal', 'breakfast'],
+  },
+  {
+    filename: 'Flaky Romali Roti with Onion Garnish.webp',
+    name: 'Rumali Roti',
+    url: imgRumaliRoti,
+    category: 'meals',
+    keywords: ['rumali roti', 'roti', 'maida', 'bread', 'carbs', 'meal'],
+  },
+  {
+    filename: 'Stacked Rotis with Cilantro Garnish.webp',
+    name: 'Roti / Chapati',
+    url: imgRoti,
+    category: 'meals',
+    keywords: ['roti', 'chapati', 'wheat', 'gluten', 'carbs', 'meal'],
+  },
+
+  // 5. Timepass & Lifestyle
+  {
+    filename: 'Free Fire Battle Emblem.webp',
+    name: 'Free Fire',
+    url: imgFreeFire,
+    category: 'timepass',
+    keywords: ['free fire', 'gaming', 'game', 'timepass', 'mobile', 'screen time'],
+  },
+  {
+    filename: 'No Snap Send Request.webp',
+    name: 'No Snap Request',
+    url: imgNoSnapRequest,
+    category: 'timepass',
+    keywords: ['snap', 'snapchat', 'send request', 'friend request', 'social media', 'timepass'],
+  },
+  {
+    filename: 'Shiny Stainless Steel Nail Clipper.webp',
+    name: 'Nail Biting',
+    url: imgNailClipper,
+    category: 'timepass',
+    keywords: ['nail', 'nail biting', 'nail cutter', 'clipper', 'nakhun', 'timepass', 'habit'],
+  },
+  {
+    filename: 'No Money Loan Icon.webp',
+    name: 'No Money Loan',
+    url: imgNoMoneyLoan,
+    category: 'timepass',
+    keywords: ['money', 'loan', 'udhar', 'borrow', 'lend', 'debt', 'spending', 'finance', 'lifestyle'],
+  },
+
+  // 6. Self-Control (18+)
+  {
+    filename: 'Glossy 18+ Restriction Badge.webp',
+    name: '18+ Adult Content',
+    url: imgAdult18,
+    category: 'self-control',
+    keywords: ['18+', 'adult', 'porn', 'nsfw', 'self control', 'nofap'],
+  },
+  {
+    filename: 'Glossy Sperm Swarm Illustration.webp',
+    name: 'NoFap / Masturbation',
+    url: imgSpermSwarm,
+    category: 'self-control',
+    keywords: ['nofap', 'masturbation', 'semen retention', '18+', 'self control', 'urge'],
+  },
+  {
+    filename: 'No Lust Lips Sticker.webp',
+    name: 'No Lust / Control',
+    url: imgNoLust,
+    category: 'self-control',
+    keywords: ['no lust', 'lust', 'urges', 'self control', 'brahmacharya', '18+'],
   },
 ];
+
+const SHORT_NAME_MAP: Record<string, string> = Object.fromEntries(
+  STATIC_TEMPLATE_SEEDS.map((seed) => [seed.filename.replace(/\.[^/.]+$/, '').trim(), seed.name])
+);
+
+const STATIC_TEMPLATE_PICS: TemplatePic[] = STATIC_TEMPLATE_SEEDS.map((seed) => ({
+  id: seed.filename,
+  filename: seed.filename,
+  fullName: seed.filename.replace(/\.[^/.]+$/, '').trim(),
+  name: seed.name,
+  url: seed.url,
+  category: seed.category,
+  keywords: seed.keywords,
+}));
+
+/**
+ * Infers a clear category for any future dynamically added template image.
+ */
+export function inferTemplateCategory(rawName: string): TemplatePicCategoryId {
+  const lower = rawName.toLowerCase();
+  if (/(soda|cola|coke|pepsi|drink|juice|chai|tea|coffee|latte|shake)/.test(lower)) {
+    return 'drinks';
+  }
+  if (/(chocolate|cake|pastry|sweet|candy|cookie|ice cream|dessert|donut|mithai)/.test(lower)) {
+    return 'sweets';
+  }
+  if (/(roti|chapati|thali|dosa|bhature|rice|meal|paratha)/.test(lower)) {
+    return 'meals';
+  }
+  if (/(18\+|lust|sperm|nofap|porn|adult)/.test(lower)) {
+    return 'self-control';
+  }
+  if (/(game|fire|snap|insta|reel|youtube|nail|clipper|money|loan|phone|timepass|smoking)/.test(lower)) {
+    return 'timepass';
+  }
+  return 'fast-food';
+}
 
 /**
  * Returns a short, clean, human-friendly title for any template image.
@@ -244,34 +335,30 @@ export function getShortTemplateName(rawName: string): string {
     return SHORT_NAME_MAP[trimmed];
   }
 
-  // Case-insensitive lookup
   const lower = trimmed.toLowerCase();
   for (const [key, val] of Object.entries(SHORT_NAME_MAP)) {
     if (key.toLowerCase() === lower) return val;
   }
 
-  // Fallback: Smart heuristic stripping of common AI image prompt prefixes & suffixes
   const clean = trimmed
-    .replace(/^(Cartoon|Glossy|Golden|Classic|Flaky|Creamy|Steamed|Crispy)\s+/i, '')
-    .replace(/\s+(Platter|Plate|Sticker Icon|Sticker|Collection|Illustration|Badge|Emblem|with [^,]+)$/i, '')
+    .replace(/^(Cartoon|Glossy|Golden|Classic|Flaky|Creamy|Steamed|Crispy|Shiny)\s+/i, '')
+    .replace(/\s+(Platter|Plate|Sticker Icon|Sticker|Icon|Collection|Illustration|Badge|Emblem|with [^,]+)$/i, '')
     .trim();
 
   return clean || trimmed;
 }
 
 // Vite's import.meta.glob dynamically imports all images from src/template-pics/
-// This ensures any newly added images dropped into the folder are automatically loaded.
+// so any newly added image dropped into the folder is also loaded automatically.
 const dynamicImageModules = import.meta.glob<{ default: string }>(
   '../template-pics/*.{png,jpg,jpeg,webp,svg,PNG,JPG,JPEG,WEBP,SVG}',
   { eager: true }
 );
 
 export function getTemplatePicList(): TemplatePic[] {
-  // Start with static baseline
   const list: TemplatePic[] = [...STATIC_TEMPLATE_PICS];
   const seenIds = new Set<string>(STATIC_TEMPLATE_PICS.map((item) => item.id.toLowerCase()));
 
-  // Dynamically merge any new images dropped into src/template-pics/
   for (const [path, mod] of Object.entries(dynamicImageModules)) {
     const filename = path.split('/').pop() || '';
     if (!filename || seenIds.has(filename.toLowerCase())) continue;
@@ -287,11 +374,18 @@ export function getTemplatePicList(): TemplatePic[] {
       fullName,
       url,
       filename,
+      category: inferTemplateCategory(fullName),
+      keywords: fullName.toLowerCase().split(/\s+/),
     });
   }
 
-  // Sort alphabetically by short name
   return list.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function getTemplateCategoryMeta(categoryId: TemplatePicCategoryId): TemplatePicCategoryMeta {
+  return (
+    TEMPLATE_PIC_CATEGORIES.find((cat) => cat.id === categoryId) || TEMPLATE_PIC_CATEGORIES[0]
+  );
 }
 
 /**
@@ -312,7 +406,6 @@ export function getTemplatePicUrl(imageIdentifier?: string): string | undefined 
   );
   if (match) return match.url;
 
-  // If already a full URL or blob
   if (
     imageIdentifier.startsWith('http://') ||
     imageIdentifier.startsWith('https://') ||
