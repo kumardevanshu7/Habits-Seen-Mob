@@ -143,11 +143,30 @@ function formatDownloadError(rawMessage?: string): string {
   return msg || 'Download failed. You can still download the full APK.';
 }
 
+async function getEffectiveBuildCommit(): Promise<string> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const cur = await CapacitorUpdater.current();
+      const bundleId = cur?.bundle?.id;
+      const bundleVersion = cur?.bundle?.version || '';
+      if (bundleId && bundleId !== 'builtin' && bundleVersion.includes('-')) {
+        const otaCommit = bundleVersion.split('-').slice(1).join('-').trim();
+        if (otaCommit) return otaCommit;
+      }
+    } catch {
+      // Fallback to compile-time commit
+    }
+  }
+  return CURRENT_BUILD_COMMIT;
+}
+
 /**
  * Checks GitHub Releases & Commits for the latest HabitSeen Live Updates and APKs
  */
 export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
   try {
+    const activeCommit = await getEffectiveBuildCommit();
+
     // 1. Check official GitHub Releases first for compiled assets
     let latestRelease: any = null;
     let releaseCheckError: string | null = null;
@@ -200,7 +219,7 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
           )
         : undefined;
 
-      const hasNewerVersion = isReleaseNewer(latestTag, CURRENT_APP_VERSION, CURRENT_BUILD_COMMIT);
+      const hasNewerVersion = isReleaseNewer(latestTag, CURRENT_APP_VERSION, activeCommit);
 
       if (hasNewerVersion) {
         return {
@@ -233,10 +252,10 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
         const commitMsg = latestCommit.commit?.message?.split('\n')[0] || 'Latest updates pushed to GitHub';
         const commitDate = latestCommit.commit?.author?.date || new Date().toISOString();
 
-        if (shortSha && shortSha.toLowerCase() !== CURRENT_BUILD_COMMIT.toLowerCase()) {
+        if (shortSha && shortSha.toLowerCase() !== activeCommit.toLowerCase()) {
           return {
             version: CURRENT_APP_VERSION,
-            name: `HabitSeen v${CURRENT_APP_VERSION} (${CURRENT_BUILD_COMMIT})`,
+            name: `HabitSeen v${CURRENT_APP_VERSION} (${activeCommit})`,
             notes: `New code was recently pushed: "${commitMsg}". GitHub Actions is currently compiling the in-app live update bundle (~2 mins). Tap Check Updates in a moment to apply it instantly!`,
             hasUpdate: false,
             publishedAt: commitDate,
@@ -256,7 +275,7 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
     // 3. App is genuinely up to date
     return {
       version: CURRENT_APP_VERSION,
-      name: `HabitSeen v${CURRENT_APP_VERSION} (${CURRENT_BUILD_COMMIT})`,
+      name: `HabitSeen v${CURRENT_APP_VERSION} (${activeCommit})`,
       notes: 'Your app is fully synchronized with the latest GitHub code and releases.',
       hasUpdate: false,
       publishedAt: new Date().toISOString(),
