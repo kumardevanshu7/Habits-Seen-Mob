@@ -1,4 +1,4 @@
-import { Habit, HabitLog } from '../types/habit';
+import { Habit, HabitLog, HabitPair } from '../types/habit';
 import { STREAK_CHALLENGES } from '../constants/gamification';
 import {
   differenceInCalendarDays,
@@ -14,6 +14,15 @@ import {
   subYears,
 } from 'date-fns';
 import { isHabitDueOnDate, getTodayKey } from './dateMath';
+
+/** Returns the canonical left and right slot IDs for a list of habit pairs. */
+export function getPairSlotIds(pairs: HabitPair[] = []): string[] {
+  const slotIds: string[] = [];
+  for (const p of pairs) {
+    slotIds.push(`${p.id}:left`, `${p.id}:right`);
+  }
+  return slotIds;
+}
 
 export function evaluateHabitSuccess(
   habit: Habit,
@@ -121,6 +130,18 @@ export function evaluateHabitSuccess(
           progressRatio: Math.min(1, Math.max(0, completed.length / minReq)),
         };
       }
+    }
+
+    case 'PAIR': {
+      const slotIds = getPairSlotIds(habit.config.pair?.pairs);
+      if (!slotIds.length) return { isSuccess: false, progressRatio: 0 };
+      const validSlotIds = new Set(slotIds);
+      const completed = (log.valuePairCompletedSlotIds || []).filter((id) => validSlotIds.has(id));
+      const ok = slotIds.every((id) => completed.includes(id));
+      return {
+        isSuccess: ok,
+        progressRatio: Math.min(1, Math.max(0, completed.length / slotIds.length)),
+      };
     }
 
     default:

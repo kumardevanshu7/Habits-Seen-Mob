@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import confetti from 'canvas-confetti';
+import { getPairSlotIds } from '../../utils/streakEngine';
 import { HabitActionsModal } from './HabitActionsModal';
 
 interface JustTrackingMonthCardProps {
@@ -126,6 +127,11 @@ export const JustTrackingMonthCard: React.FC<JustTrackingMonthCardProps> = ({
     } else if (habit.type === 'CHECKLIST') {
       await logHabit(habit.id, dateKey, {
         valueChecklistCompletedItemIds: (habit.config.checklist?.items || []).map((i) => i.id),
+        forceStatus: 'COMPLETED',
+      });
+    } else if (habit.type === 'PAIR') {
+      await logHabit(habit.id, dateKey, {
+        valuePairCompletedSlotIds: getPairSlotIds(habit.config.pair?.pairs),
         forceStatus: 'COMPLETED',
       });
     } else {

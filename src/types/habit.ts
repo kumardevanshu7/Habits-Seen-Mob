@@ -1,4 +1,4 @@
-export type HabitType = 'YES_NO' | 'NUMERIC' | 'TIMER' | 'CHECKLIST';
+export type HabitType = 'YES_NO' | 'NUMERIC' | 'TIMER' | 'CHECKLIST' | 'PAIR';
 
 export type NumericOperator = 'AT_LEAST' | 'LESS_THAN' | 'EXACTLY' | 'ANY_VALUE';
 
@@ -19,6 +19,12 @@ export interface ChecklistItem {
   id: string;
   text: string;
   isStarred?: boolean;
+}
+
+export interface HabitPair {
+  id: string;
+  leftTitle: string;
+  rightTitle: string;
 }
 
 export interface Category {
@@ -46,6 +52,9 @@ export interface HabitConfig {
     items: ChecklistItem[];
     successCondition: 'ALL_MANDATORY' | 'CUSTOM_MIN_ITEMS' | 'STARRED_ONLY';
     customMinCount?: number;
+  };
+  pair?: {
+    pairs: HabitPair[];
   };
 }
 
@@ -107,6 +116,7 @@ export interface HabitLog {
   valueNumeric?: number;
   valueTimerSeconds?: number;
   valueChecklistCompletedItemIds?: string[];
+  valuePairCompletedSlotIds?: string[];
   notes?: string;
   missedReasonType?: MissedReasonType;
   missedReasonText?: string;

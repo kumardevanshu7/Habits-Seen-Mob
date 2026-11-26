@@ -11,11 +11,13 @@ import {
   MoreVertical,
   Flag,
   Calendar,
+  Link2,
 } from 'lucide-react';
 import clsx from 'clsx';
 import confetti from 'canvas-confetti';
-import { computeHabitStreaks } from '../../utils/streakEngine';
+import { computeHabitStreaks, getPairSlotIds } from '../../utils/streakEngine';
 import { HabitActionsModal } from './HabitActionsModal';
+import { PairSlotsGroup } from './PairSlotsGroup';
 
 interface HabitCardProps {
   habit: Habit;
@@ -133,9 +135,46 @@ export const HabitCard: React.FC<HabitCardProps> = ({
     logHabit(habit.id, dateKey, { valueYesNo: true });
   };
 
+  // PAIR HABIT SLOT DATA & TOGGLE
+  const pairList = habit.config.pair?.pairs || [];
+  const allPairSlotIds = useMemo(() => getPairSlotIds(pairList), [pairList]);
+  const completedPairSlots = useMemo(() => {
+    const valid = new Set(allPairSlotIds);
+    return (dayLog?.valuePairCompletedSlotIds || []).filter((id) => valid.has(id));
+  }, [dayLog?.valuePairCompletedSlotIds, allPairSlotIds]);
+
+  const handleTogglePairSlot = (slotId: string) => {
+    if (isDateLocked) {
+      showLockedNotice();
+      return;
+    }
+    if (isCompleted) {
+      showCompletedLockedNotice();
+      return;
+    }
+
+    const exists = completedPairSlots.includes(slotId);
+    const nextSlots = exists
+      ? completedPairSlots.filter((id) => id !== slotId)
+      : [...completedPairSlots, slotId];
+
+    const willCompleteAll =
+      allPairSlotIds.length > 0 && allPairSlotIds.every((id) => nextSlots.includes(id));
+
+    if (willCompleteAll) {
+      confetti({ particleCount: 55, spread: 70, origin: { y: 0.7 } });
+    }
+    logHabit(habit.id, dateKey, { valuePairCompletedSlotIds: nextSlots });
+  };
+
   // Calculate Progress Percentage for Progress Bar
   const progressPercent = useMemo(() => {
     if (isCompleted) return 100;
+    if (habit.type === 'PAIR') {
+      return allPairSlotIds.length > 0
+        ? Math.min(100, Math.round((completedPairSlots.length / allPairSlotIds.length) * 100))
+        : 0;
+    }
     if (habit.type === 'NUMERIC') {
       const goal = habit.config.numeric?.goal || 1;
       return Math.min(100, Math.round((currentNum / goal) * 100));
@@ -232,7 +271,7 @@ export const HabitCard: React.FC<HabitCardProps> = ({
 
               {/* CATEGORY CUSTOM COLOR BADGE */}
               {category && (
-                <div className="mb-2">
+                <div className="mb-2 flex items-center gap-1.5 flex-wrap">
                   <span
                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border"
                     style={{
@@ -247,6 +286,24 @@ export const HabitCard: React.FC<HabitCardProps> = ({
                     />
                     {category.name}
                   </span>
+
+                  {habit.type === 'PAIR' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">
+                      <Link2 size={9} />
+                      Pair {completedPairSlots.length}/{allPairSlotIds.length}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {habit.type === 'PAIR' && pairList.length > 0 && (
+                <div className="mb-2.5">
+                  <PairSlotsGroup
+                    pairs={pairList}
+                    completedSlotIds={completedPairSlots}
+                    onToggleSlot={handleTogglePairSlot}
+                    compact
+                  />
                 </div>
               )}
             </div>
@@ -270,22 +327,42 @@ export const HabitCard: React.FC<HabitCardProps> = ({
                   <span>{currentStreak > 0 ? `${currentStreak}d` : 'Day 1'}</span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleToggleYesNo();
-                  }}
-                  className={clsx(
-                    'w-7 h-7 rounded-full flex items-center justify-center transition-all shadow-xs shrink-0',
-                    isCompleted
-                      ? 'bg-emerald-500 text-white cursor-default'
-                      : 'bg-zinc-900 text-white hover:bg-zinc-700 active:scale-90'
-                  )}
-                  title={isCompleted ? 'Done' : 'Mark done'}
-                >
-                  <Check size={14} strokeWidth={2.5} />
-                </button>
+                {habit.type === 'PAIR' ? (
+                  <span
+                    className={clsx(
+                      'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0',
+                      isCompleted
+                        ? 'bg-emerald-500 text-white'
+                        : completedPairSlots.length > 0
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-zinc-100 text-zinc-600'
+                    )}
+                  >
+                    {isCompleted && <Check size={10} strokeWidth={3} />}
+                    <span>
+                      {isCompleted
+                        ? 'Paired ✓'
+                        : `${completedPairSlots.length}/${allPairSlotIds.length} Done`}
+                    </span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleYesNo();
+                    }}
+                    className={clsx(
+                      'w-7 h-7 rounded-full flex items-center justify-center transition-all shadow-xs shrink-0',
+                      isCompleted
+                        ? 'bg-emerald-500 text-white cursor-default'
+                        : 'bg-zinc-900 text-white hover:bg-zinc-700 active:scale-90'
+                    )}
+                    title={isCompleted ? 'Done' : 'Mark done'}
+                  >
+                    <Check size={14} strokeWidth={2.5} />
+                  </button>
+                )}
               </div>
             </div>
           </>
@@ -333,8 +410,21 @@ export const HabitCard: React.FC<HabitCardProps> = ({
             {/* TAGS ROW: ONGOING STATUS + PRIORITY BADGE */}
             <div className="flex items-center gap-2 mb-3.5 flex-wrap">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 text-zinc-600 text-xs font-semibold">
-                <span className={clsx('w-1.5 h-1.5 rounded-full', isCompleted ? 'bg-emerald-500' : 'bg-amber-500')} />
-                {isCompleted ? 'Completed' : 'Ongoing'}
+                <span
+                  className={clsx(
+                    'w-1.5 h-1.5 rounded-full',
+                    isCompleted
+                      ? 'bg-emerald-500'
+                      : dayLog?.status === 'PARTIAL'
+                      ? 'bg-purple-500'
+                      : 'bg-amber-500'
+                  )}
+                />
+                {isCompleted
+                  ? 'Completed'
+                  : habit.type === 'PAIR' && completedPairSlots.length > 0
+                  ? `Halfway (${completedPairSlots.length}/${allPairSlotIds.length})`
+                  : 'Ongoing'}
               </span>
 
               <span className={clsx('inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold', priorityBg)}>
@@ -359,7 +449,25 @@ export const HabitCard: React.FC<HabitCardProps> = ({
                   {category.name}
                 </span>
               )}
+
+              {habit.type === 'PAIR' && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 text-xs font-bold">
+                  <Link2 size={11} />
+                  Pair ({completedPairSlots.length}/{allPairSlotIds.length})
+                </span>
+              )}
             </div>
+
+            {/* PAIR SLOTS GROUP (LEFT o—|—o RIGHT) */}
+            {habit.type === 'PAIR' && pairList.length > 0 && (
+              <div className="mb-3.5">
+                <PairSlotsGroup
+                  pairs={pairList}
+                  completedSlotIds={completedPairSlots}
+                  onToggleSlot={handleTogglePairSlot}
+                />
+              </div>
+            )}
 
             {/* PROGRESS BAR */}
             <div className="w-full bg-zinc-100 rounded-full h-2 mb-4 overflow-hidden p-0.5 border border-zinc-200/40">
@@ -387,22 +495,42 @@ export const HabitCard: React.FC<HabitCardProps> = ({
                   <span>{format(parseISO(dateKey), 'dd MMMM')}</span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleToggleYesNo();
-                  }}
-                  className={clsx(
-                    'w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-xs shrink-0',
-                    isCompleted
-                      ? 'bg-emerald-500 text-white cursor-default'
-                      : 'bg-zinc-900 text-white hover:bg-zinc-700 active:scale-95'
-                  )}
-                  title={isCompleted ? 'Done' : 'Mark done'}
-                >
-                  <Check size={16} strokeWidth={2.5} />
-                </button>
+                {habit.type === 'PAIR' ? (
+                  <span
+                    className={clsx(
+                      'inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold shrink-0',
+                      isCompleted
+                        ? 'bg-emerald-500 text-white'
+                        : completedPairSlots.length > 0
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-zinc-100 text-zinc-600'
+                    )}
+                  >
+                    {isCompleted && <Check size={12} strokeWidth={3} />}
+                    <span>
+                      {isCompleted
+                        ? 'Paired ✓'
+                        : `${completedPairSlots.length}/${allPairSlotIds.length} Paired`}
+                    </span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleYesNo();
+                    }}
+                    className={clsx(
+                      'w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-xs shrink-0',
+                      isCompleted
+                        ? 'bg-emerald-500 text-white cursor-default'
+                        : 'bg-zinc-900 text-white hover:bg-zinc-700 active:scale-95'
+                    )}
+                    title={isCompleted ? 'Done' : 'Mark done'}
+                  >
+                    <Check size={16} strokeWidth={2.5} />
+                  </button>
+                )}
               </div>
             </div>
           </>

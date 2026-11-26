@@ -118,6 +118,7 @@ interface AppState {
       valueNumeric?: number;
       valueTimerSeconds?: number;
       valueChecklistCompletedItemIds?: string[];
+      valuePairCompletedSlotIds?: string[];
       notes?: string;
       forceStatus?: HabitLogStatus;
       allowUnlock?: boolean;
@@ -702,6 +703,11 @@ export const useAppStore = create<AppState>()((set, get) => ({
     const status: HabitLogStatus = data.forceStatus ?? (evaluatedSuccess ? 'COMPLETED' : 'PARTIAL');
     const isSuccess = status === 'COMPLETED';
 
+    // 5. Never downgrade an already COMPLETED day (including PAIR/CHECKLIST partial toggles) without allowUnlock
+    if (existingLog.status === 'COMPLETED' && !isSuccess && !data.allowUnlock) {
+      return;
+    }
+
     // XP calculation: calculate delta to prevent duplicate or missing XP on re-complete/edit
     let newXp = 0;
     if (isSuccess) {
@@ -727,6 +733,8 @@ export const useAppStore = create<AppState>()((set, get) => ({
       valueTimerSeconds: data.valueTimerSeconds ?? existingLog.valueTimerSeconds,
       valueChecklistCompletedItemIds:
         data.valueChecklistCompletedItemIds ?? existingLog.valueChecklistCompletedItemIds,
+      valuePairCompletedSlotIds:
+        data.valuePairCompletedSlotIds ?? existingLog.valuePairCompletedSlotIds,
       notes: data.notes ?? existingLog.notes,
       xpEarned: newXp,
       loggedAt: new Date().toISOString(),

@@ -39,9 +39,10 @@ import {
 } from 'date-fns';
 import clsx from 'clsx';
 
-import { computeHabitStreaks } from '../../utils/streakEngine';
-import { isDateInThisWeek, isDateInThisMonth } from '../../utils/dateMath';
+import { computeHabitStreaks, getPairSlotIds } from '../../utils/streakEngine';
+import { isDateInThisWeek, isDateInThisMonth, getTodayKey } from '../../utils/dateMath';
 import { SecurityModal } from '../security/SecurityModal';
+import { PairSlotsGroup } from '../habits/PairSlotsGroup';
 
 interface HabitDetailsModalProps {
   habit: Habit | null;
@@ -122,6 +123,16 @@ export const HabitDetailsModal: React.FC<HabitDetailsModalProps> = ({
         return (
           <span className="font-mono text-xs font-bold text-ink">
             {done} <span className="text-stone text-[10px] font-normal">/ {total} items done</span>
+          </span>
+        );
+      }
+      case 'PAIR': {
+        const slotIds = getPairSlotIds(habit.config?.pair?.pairs);
+        const valid = new Set(slotIds);
+        const done = (log.valuePairCompletedSlotIds || []).filter((id) => valid.has(id)).length;
+        return (
+          <span className="font-mono text-xs font-bold text-ink">
+            {done} <span className="text-stone text-[10px] font-normal">/ {slotIds.length} paired</span>
           </span>
         );
       }
@@ -271,6 +282,26 @@ export const HabitDetailsModal: React.FC<HabitDetailsModalProps> = ({
                 Not mandatory daily. Log whenever you do it. Missed days do not break streaks or reduce hearts. Completed days lock permanently.
               </p>
             </div>
+          </div>
+        )}
+
+        {/* PAIR HABIT BREAKDOWN (TODAY) */}
+        {habit.type === 'PAIR' && (habit.config.pair?.pairs?.length || 0) > 0 && (
+          <div className="p-4 bg-surface-card border border-hairline rounded-2xl space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-charcoal">
+                Linked Pairs (Today)
+              </h4>
+              <span className="text-[11px] font-semibold text-purple-700">
+                Both sides required to finish
+              </span>
+            </div>
+            <PairSlotsGroup
+              pairs={habit.config.pair?.pairs || []}
+              completedSlotIds={logs?.[`${habit.id}_${getTodayKey()}`]?.valuePairCompletedSlotIds || []}
+              readOnly
+              compact
+            />
           </div>
         )}
 

@@ -1082,6 +1082,7 @@ export const HabitsView: React.FC<HabitsViewProps> = ({
               onTouchEnd={handleHabitTouchEnd}
               className={clsx(
                 viewMode === 'grid' ? 'h-full flex flex-col' : '',
+                viewMode === 'grid' && habit.type === 'PAIR' && 'col-span-2',
                 touchDraggingHabitId === habit.id && 'opacity-60 scale-[1.02] shadow-xl z-20'
               )}
             >

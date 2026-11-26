@@ -10,11 +10,13 @@ import {
   TimerOperator,
   FrequencyType,
   ChecklistItem,
+  HabitPair,
   HabitConfig,
   HabitFrequency,
   HabitSchedule,
   Habit,
 } from '../../types/habit';
+import { getPairSlotIds } from '../../utils/streakEngine';
 import {
   calculateDaysBetween,
   getTodayKey,
@@ -39,6 +41,7 @@ import {
   ArrowLeft,
   Sparkles,
   Info,
+  Link2,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -102,6 +105,11 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
     'ALL_MANDATORY' | 'CUSTOM_MIN_ITEMS' | 'STARRED_ONLY'
   >('ALL_MANDATORY');
   const [customMinCount, setCustomMinCount] = useState<number>(1);
+
+  // 4. Pair Habit Fields (Left o—|—o Right)
+  const [pairs, setPairs] = useState<HabitPair[]>([
+    { id: 'pair-1', leftTitle: '', rightTitle: '' },
+  ]);
 
   // Frequency ("How often do you want to do it")
   const [frequencyType, setFrequencyType] = useState<FrequencyType>(
@@ -172,6 +180,13 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
         setCustomMinCount(1);
       }
 
+      // 4. Pair
+      if (habitToEdit.config?.pair?.pairs?.length) {
+        setPairs(habitToEdit.config.pair.pairs);
+      } else {
+        setPairs([{ id: 'pair-1', leftTitle: '', rightTitle: '' }]);
+      }
+
       // Frequency
       setFrequencyType(habitToEdit.frequency?.type || 'EVERYDAY');
       setDaysOfWeek(habitToEdit.frequency?.daysOfWeek || [1, 2, 3, 4, 5]);
@@ -209,6 +224,7 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
       ]);
       setChecklistCondition('ALL_MANDATORY');
       setCustomMinCount(1);
+      setPairs([{ id: 'pair-1', leftTitle: '', rightTitle: '' }]);
       setFrequencyType(initialFrequencyType || 'EVERYDAY');
       setDaysOfWeek([1, 2, 3, 4, 5]);
       setDaysOfMonthStr('1, 15, 30');
@@ -322,7 +338,36 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (submittingRef.current || isSubmitting) return;
-    if (!name.trim()) {
+
+    const cleanedPairs = pairs
+      .map((p) => ({
+        id: p.id,
+        leftTitle: p.leftTitle.trim(),
+        rightTitle: p.rightTitle.trim(),
+      }))
+      .filter((p) => p.leftTitle || p.rightTitle);
+
+    if (type === 'PAIR') {
+      if (cleanedPairs.length === 0) {
+        setWizardStep(2);
+        setNameError('Please add at least 1 Left ↔ Right pair');
+        return;
+      }
+      const hasIncompletePair = cleanedPairs.some((p) => !p.leftTitle || !p.rightTitle);
+      if (hasIncompletePair) {
+        setWizardStep(2);
+        setNameError('Both Left and Right side names are required for every pair');
+        return;
+      }
+    }
+
+    const resolvedName =
+      name.trim() ||
+      (type === 'PAIR' && cleanedPairs[0]
+        ? `${cleanedPairs[0].leftTitle} ↔ ${cleanedPairs[0].rightTitle}`
+        : '');
+
+    if (!resolvedName) {
       setWizardStep(2);
       setNameError('Please enter a habit name');
       return;
@@ -362,6 +407,10 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
           items: checklistItems,
           successCondition: checklistCondition,
           customMinCount: Number(customMinCount) || 1,
+        };
+      } else if (type === 'PAIR') {
+        config.pair = {
+          pairs: cleanedPairs,
         };
       }
 
@@ -403,7 +452,7 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
       if (habitToEdit) {
         await updateHabit({
           ...habitToEdit,
-          name: name.trim(),
+          name: resolvedName,
           description: description.trim(),
           categoryId: selectedCategoryId,
           type,
@@ -413,7 +462,7 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
         });
       } else {
         const createdHabit = await addHabit({
-          name: name.trim(),
+          name: resolvedName,
           description: description.trim(),
           categoryId: selectedCategoryId,
           type,
@@ -435,6 +484,8 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                     Number(timerSecs) || 0
                   ) || 60
                 : undefined,
+            valuePairCompletedSlotIds:
+              type === 'PAIR' ? getPairSlotIds(cleanedPairs) : undefined,
             forceStatus: 'COMPLETED',
           });
         }
@@ -694,76 +745,150 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
           {/* ============================================================ */}
           {wizardStep === 2 && (
             <div className="space-y-4 animate-in fade-in duration-200">
-              {/* HABIT TYPE SELECTOR (4 TYPES) - NO DUPLICATE NUMBER */}
+              {/* HABIT MODE SELECTOR: SINGLE HABIT VS PAIR HABIT */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-charcoal mb-2 ml-1">
-                  Habit Type
+                  Choose Habit Mode
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-2 gap-2.5">
                   <button
                     type="button"
-                    onClick={() => setType('YES_NO')}
+                    onClick={() => {
+                      if (type === 'PAIR') setType('YES_NO');
+                      if (nameError) setNameError('');
+                    }}
                     className={clsx(
-                      'flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all text-center gap-1.5',
-                      type === 'YES_NO'
-                        ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30 shadow-xs font-bold'
+                      'p-3 rounded-2xl border-2 text-left transition-all flex items-start gap-2.5 cursor-pointer',
+                      type !== 'PAIR'
+                        ? 'border-primary bg-primary/10 text-ink ring-2 ring-primary/25 shadow-xs'
                         : 'border-hairline bg-surface-card hover:bg-surface-bone text-charcoal'
                     )}
                   >
-                    <ToggleLeft size={22} />
-                    <span className="text-xs font-semibold">Yes or No</span>
+                    <div
+                      className={clsx(
+                        'w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5',
+                        type !== 'PAIR' ? 'bg-primary text-white' : 'bg-surface-bone text-charcoal'
+                      )}
+                    >
+                      <ToggleLeft size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block text-xs sm:text-sm font-bold text-ink">
+                        Single Habit
+                      </span>
+                      <span className="block text-[11px] text-charcoal/80 leading-snug mt-0.5">
+                        1 standalone daily habit target
+                      </span>
+                    </div>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => setType('NUMERIC')}
+                    onClick={() => {
+                      setType('PAIR');
+                      if (nameError) setNameError('');
+                    }}
                     className={clsx(
-                      'flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all text-center gap-1.5',
-                      type === 'NUMERIC'
-                        ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30 shadow-xs font-bold'
+                      'p-3 rounded-2xl border-2 text-left transition-all flex items-start gap-2.5 cursor-pointer',
+                      type === 'PAIR'
+                        ? 'border-purple-600 bg-purple-50 text-ink ring-2 ring-purple-500/25 shadow-xs'
                         : 'border-hairline bg-surface-card hover:bg-surface-bone text-charcoal'
                     )}
                   >
-                    <Hash size={22} />
-                    <span className="text-xs font-semibold">Numeric Goal</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setType('TIMER')}
-                    className={clsx(
-                      'flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all text-center gap-1.5',
-                      type === 'TIMER'
-                        ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30 shadow-xs font-bold'
-                        : 'border-hairline bg-surface-card hover:bg-surface-bone text-charcoal'
-                    )}
-                  >
-                    <Clock size={22} />
-                    <span className="text-xs font-semibold">Timer Duration</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setType('CHECKLIST')}
-                    className={clsx(
-                      'flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all text-center gap-1.5',
-                      type === 'CHECKLIST'
-                        ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30 shadow-xs font-bold'
-                        : 'border-hairline bg-surface-card hover:bg-surface-bone text-charcoal'
-                    )}
-                  >
-                    <CheckSquare size={22} />
-                    <span className="text-xs font-semibold">Checklist</span>
+                    <div
+                      className={clsx(
+                        'w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5',
+                        type === 'PAIR' ? 'bg-purple-600 text-white' : 'bg-surface-bone text-charcoal'
+                      )}
+                    >
+                      <Link2 size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block text-xs sm:text-sm font-bold text-ink">
+                        Pair Habit
+                      </span>
+                      <span className="block text-[11px] text-charcoal/80 leading-snug mt-0.5">
+                        Left o—|—o Right · complete both
+                      </span>
+                    </div>
                   </button>
                 </div>
               </div>
 
-              {/* HABIT NAME & INPUTS - NO DUPLICATE NUMBER */}
+              {/* HABIT TYPE SELECTOR (4 TYPES) */}
+              {type !== 'PAIR' && (
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-charcoal mb-2 ml-1">
+                    Habit Type
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setType('YES_NO')}
+                      className={clsx(
+                        'flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all text-center gap-1.5',
+                        type === 'YES_NO'
+                          ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30 shadow-xs font-bold'
+                          : 'border-hairline bg-surface-card hover:bg-surface-bone text-charcoal'
+                      )}
+                    >
+                      <ToggleLeft size={22} />
+                      <span className="text-xs font-semibold">Yes or No</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setType('NUMERIC')}
+                      className={clsx(
+                        'flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all text-center gap-1.5',
+                        type === 'NUMERIC'
+                          ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30 shadow-xs font-bold'
+                          : 'border-hairline bg-surface-card hover:bg-surface-bone text-charcoal'
+                      )}
+                    >
+                      <Hash size={22} />
+                      <span className="text-xs font-semibold">Numeric Goal</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setType('TIMER')}
+                      className={clsx(
+                        'flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all text-center gap-1.5',
+                        type === 'TIMER'
+                          ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30 shadow-xs font-bold'
+                          : 'border-hairline bg-surface-card hover:bg-surface-bone text-charcoal'
+                      )}
+                    >
+                      <Clock size={22} />
+                      <span className="text-xs font-semibold">Timer Duration</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setType('CHECKLIST')}
+                      className={clsx(
+                        'flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all text-center gap-1.5',
+                        type === 'CHECKLIST'
+                          ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30 shadow-xs font-bold'
+                          : 'border-hairline bg-surface-card hover:bg-surface-bone text-charcoal'
+                      )}
+                    >
+                      <CheckSquare size={22} />
+                      <span className="text-xs font-semibold">Checklist</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* HABIT NAME & INPUTS */}
               <div className="space-y-4 p-4 bg-surface-card rounded-2xl border border-hairline shadow-2xs">
                 <Input
-                  label="Habit Name"
+                  label={type === 'PAIR' ? 'Pair Task Title (Optional — auto-fills from Pair 1)' : 'Habit Name'}
                   placeholder={
-                    type === 'YES_NO'
+                    type === 'PAIR'
+                      ? 'e.g. Daily Skincare, Morning & Night Routine'
+                      : type === 'YES_NO'
                       ? 'e.g. Cold Shower, No Social Media'
                       : type === 'NUMERIC'
                       ? 'e.g. Daily Water Intake, Read Pages'
@@ -777,7 +902,7 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                     if (nameError) setNameError('');
                   }}
                   error={nameError}
-                  required
+                  required={type !== 'PAIR'}
                   autoFocus
                 />
 
@@ -1088,6 +1213,162 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* 4. PAIR HABIT BUILDER (LEFT o—|—o RIGHT) */}
+                {type === 'PAIR' && (
+                  <div className="pt-2 border-t border-hairline space-y-3.5">
+                    <div className="p-3 rounded-2xl bg-purple-50/80 border border-purple-200/80 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                          <Link2 size={14} className="text-purple-600 shrink-0" />
+                          Linked Pair Rule
+                        </span>
+                        <p className="text-[11px] text-purple-800/80 mt-0.5">
+                          Task completes only when both Left and Right sides of every pair are checked!
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Quick Presets */}
+                    <div className="space-y-1.5">
+                      <span className="text-[11px] font-bold text-charcoal block ml-0.5">
+                        Quick Pair Templates
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { left: 'Morning Routine', right: 'Night Routine' },
+                          { left: 'AM Skincare', right: 'PM Skincare' },
+                          { left: 'Wake Up Water', right: 'Before Bed Read' },
+                          { left: 'Study Session', right: 'Quick Revision' },
+                        ].map((preset) => (
+                          <button
+                            key={`${preset.left}-${preset.right}`}
+                            type="button"
+                            onClick={() => {
+                              setNameError('');
+                              setPairs((prev) => {
+                                const hasEmptyFirst =
+                                  prev.length === 1 &&
+                                  !prev[0].leftTitle.trim() &&
+                                  !prev[0].rightTitle.trim();
+                                if (hasEmptyFirst) {
+                                  return [
+                                    {
+                                      id: prev[0].id,
+                                      leftTitle: preset.left,
+                                      rightTitle: preset.right,
+                                    },
+                                  ];
+                                }
+                                return [
+                                  ...prev,
+                                  {
+                                    id: `pair-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+                                    leftTitle: preset.left,
+                                    rightTitle: preset.right,
+                                  },
+                                ];
+                              });
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-bone hover:bg-purple-50 text-charcoal hover:text-purple-800 border border-hairline hover:border-purple-300 text-[11px] font-semibold transition-all cursor-pointer"
+                          >
+                            <span>{preset.left}</span>
+                            <span className="text-rose-500 font-bold">↔</span>
+                            <span>{preset.right}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Pairs Rows */}
+                    <div className="space-y-2.5">
+                      {pairs.map((pair, idx) => (
+                        <div
+                          key={pair.id}
+                          className="p-3 rounded-2xl bg-surface-bone/70 border border-hairline space-y-2"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-charcoal">
+                              Pair #{idx + 1}
+                            </span>
+                            {pairs.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setPairs(pairs.filter((p) => p.id !== pair.id))}
+                                className="text-xs text-stone hover:text-red-500 p-1 rounded-full transition-colors cursor-pointer"
+                                title="Remove Pair"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="text"
+                              placeholder="Left (e.g. Morning Routine)"
+                              value={pair.leftTitle}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (nameError) setNameError('');
+                                setPairs(
+                                  pairs.map((p) =>
+                                    p.id === pair.id ? { ...p, leftTitle: val } : p
+                                  )
+                                );
+                              }}
+                              className="flex-1 min-w-0 bg-white text-ink text-xs sm:text-sm font-medium px-3 py-2.5 rounded-xl border border-hairline focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            />
+
+                            {/* o—|—o link divider */}
+                            <div className="flex items-center shrink-0 px-0.5" aria-hidden="true">
+                              <span className="w-2 h-2 rounded-full border-2 border-rose-500 bg-white" />
+                              <span className="w-1.5 h-0.5 bg-rose-500" />
+                              <span className="w-0.5 h-5 bg-rose-500 rounded-full" />
+                              <span className="w-1.5 h-0.5 bg-rose-500" />
+                              <span className="w-2 h-2 rounded-full border-2 border-rose-500 bg-white" />
+                            </div>
+
+                            <input
+                              type="text"
+                              placeholder="Right (e.g. Night Routine)"
+                              value={pair.rightTitle}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (nameError) setNameError('');
+                                setPairs(
+                                  pairs.map((p) =>
+                                    p.id === pair.id ? { ...p, rightTitle: val } : p
+                                  )
+                                );
+                              }}
+                              className="flex-1 min-w-0 bg-white text-ink text-xs sm:text-sm font-medium px-3 py-2.5 rounded-xl border border-hairline focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            />
+                          </div>
+                        </div>
+                      ))}
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setPairs([
+                            ...pairs,
+                            {
+                              id: `pair-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+                              leftTitle: '',
+                              rightTitle: '',
+                            },
+                          ])
+                        }
+                        className="w-full gap-1.5 border-dashed border-purple-400 text-purple-700 hover:bg-purple-50"
+                      >
+                        <Plus size={14} /> Add Another Pair
+                      </Button>
+                    </div>
                   </div>
                 )}
 
