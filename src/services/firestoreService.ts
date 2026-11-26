@@ -398,3 +398,34 @@ export const resetEntireUserDataInDb = async (userId: string) => {
   );
 };
 
+// 7. Sudden Death Purge: wipes active habits, logs, breaks, challenges & custom categories while saving Sudden Death History on UserProfile
+export const purgeActiveDataForSuddenDeathInDb = async (
+  userId: string,
+  updatedUser: UserProfile,
+  defaultCategory?: Category
+) => {
+  await Promise.all([
+    deleteCollectionInChunks(collection(db, 'users', userId, 'habits')),
+    deleteCollectionInChunks(collection(db, 'users', userId, 'logs')),
+    deleteCollectionInChunks(collection(db, 'users', userId, 'categories')),
+    deleteCollectionInChunks(collection(db, 'users', userId, 'habitBreaks')),
+    deleteCollectionInChunks(collection(db, 'users', userId, 'challenges')),
+  ]);
+
+  if (defaultCategory) {
+    await setDoc(
+      doc(db, 'users', userId, 'categories', defaultCategory.id),
+      cleanFirestoreData(defaultCategory)
+    );
+  }
+
+  await setDoc(
+    doc(db, 'users', userId),
+    cleanFirestoreData({
+      ...updatedUser,
+      updatedAt: new Date().toISOString(),
+    }),
+    { merge: true }
+  );
+};
+

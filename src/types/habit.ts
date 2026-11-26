@@ -189,6 +189,22 @@ export interface UserSecurityConfig {
   answer?: string;     // Legacy fallback for plain text answer (auto-migrated)
 }
 
+export interface SuddenDeathWipedHabit {
+  name: string;
+  categoryName?: string;
+  streakLost: number;
+}
+
+export interface SuddenDeathRecord {
+  id: string;
+  occurredAt: string; // ISO timestamp
+  reason: string;
+  wipedHabits: SuddenDeathWipedHabit[];
+  wipedHabitBreaksCount: number;
+  wipedChallengesCount: number;
+  xpLost: number;
+}
+
 export interface UserProfile {
   name: string;
   avatarUrl?: string;
@@ -202,6 +218,7 @@ export interface UserProfile {
   gender: 'male' | 'female' | 'non_binary' | 'other';
   isOnboarded: boolean;
   security?: UserSecurityConfig;
+  suddenDeathHistory?: SuddenDeathRecord[];
   gamification: {
     level: number;
     levelTitle: string;
@@ -211,7 +228,8 @@ export interface UserProfile {
     maxHearts: number;        // Default 5
     xpLossTowardsHeart?: number; // Accumulated XP penalty towards next heart deduction (0 - 349)
     perfectDaysCompleted?: string[]; // Dates (YYYY-MM-DD) where 100% perfect day bonus was awarded
-    lastDeathAt?: string;     // ISO timestamp of last zero-vitality death / soft reset
+    lastDeathAt?: string;     // ISO timestamp of last zero-vitality death / purge
+    lastHeartLossReason?: string; // Human-readable cause of the latest heart deduction
   };
 }
 

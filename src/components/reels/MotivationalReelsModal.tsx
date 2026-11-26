@@ -14,9 +14,10 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import {
-  MOTIVATIONAL_REELS,
   MotivationalReel,
   getTwoHourShuffledReels,
+  resolvePlayableReelUrl,
+  cacheSingleReel,
 } from '../../utils/motivationalReels';
 import { pushModalToStack } from '../ui/Modal';
 
@@ -66,6 +67,48 @@ export const MotivationalReelsModal: React.FC<MotivationalReelsModalProps> = ({
 
   const totalReels = reelsList.length;
   const currentReel: MotivationalReel | undefined = reelsList[currentIndex] || reelsList[0];
+  const [resolvedSrc, setResolvedSrc] = useState<string>(currentReel?.url || '');
+  const blobUrlCacheRef = useRef<Record<string, string>>({});
+
+  // Resolve cached Blob URL first (instant/offline), else stream + cache in background
+  useEffect(() => {
+    if (!isOpen || !currentReel) return;
+    let cancelled = false;
+    const cachedBlobUrl = blobUrlCacheRef.current[currentReel.id];
+    if (cachedBlobUrl) {
+      setResolvedSrc(cachedBlobUrl);
+    } else {
+      setResolvedSrc(currentReel.url);
+      resolvePlayableReelUrl(currentReel).then(({ src, isBlob }) => {
+        if (cancelled) {
+          if (isBlob) URL.revokeObjectURL(src);
+          return;
+        }
+        if (isBlob) {
+          blobUrlCacheRef.current[currentReel.id] = src;
+          setResolvedSrc(src);
+        }
+      });
+    }
+
+    // Quietly cache next reel in background if needed
+    const nextReel = reelsList[currentIndex + 1];
+    if (nextReel) {
+      void cacheSingleReel(nextReel);
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, currentReel, currentIndex, reelsList]);
+
+  // Revoke any Blob URLs when Reels modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      Object.values(blobUrlCacheRef.current).forEach((bUrl) => URL.revokeObjectURL(bUrl));
+      blobUrlCacheRef.current = {};
+    }
+  }, [isOpen]);
 
   // Go to next reel
   const handleNextReel = useCallback(() => {
@@ -284,7 +327,7 @@ export const MotivationalReelsModal: React.FC<MotivationalReelsModalProps> = ({
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <video
             key={`blur-${currentReel.id}`}
-            src={currentReel.url}
+            src={resolvedSrc || currentReel.url}
             className="w-full h-full object-cover blur-3xl opacity-35 scale-125"
             playsInline
             autoPlay
@@ -299,7 +342,7 @@ export const MotivationalReelsModal: React.FC<MotivationalReelsModalProps> = ({
         <video
           ref={videoRef}
           key={currentReel.id}
-          src={currentReel.url}
+          src={resolvedSrc || currentReel.url}
           className="relative z-10 w-full h-full object-contain cursor-pointer"
           playsInline
           autoPlay
@@ -328,21 +371,21 @@ export const MotivationalReelsModal: React.FC<MotivationalReelsModalProps> = ({
           </div>
         )}
 
-        {/* BACKGROUND PRELOADERS FOR ADJACENT REELS (ZERO-LAG SWIPING) */}
-        {currentIndex < totalReels - 1 && (
+        {/* BACKGROUND PRELOADERS FOR ADJACENT REELS */}
+        {currentIndex < totalReels - 1 && blobUrlCacheRef.current[reelsList[currentIndex + 1].id] && (
           <video
             key={`preload-next-${reelsList[currentIndex + 1].id}`}
-            src={reelsList[currentIndex + 1].url}
+            src={blobUrlCacheRef.current[reelsList[currentIndex + 1].id]}
             preload="auto"
             className="hidden"
             muted
             aria-hidden="true"
           />
         )}
-        {currentIndex > 0 && (
+        {currentIndex > 0 && blobUrlCacheRef.current[reelsList[currentIndex - 1].id] && (
           <video
             key={`preload-prev-${reelsList[currentIndex - 1].id}`}
-            src={reelsList[currentIndex - 1].url}
+            src={blobUrlCacheRef.current[reelsList[currentIndex - 1].id]}
             preload="auto"
             className="hidden"
             muted

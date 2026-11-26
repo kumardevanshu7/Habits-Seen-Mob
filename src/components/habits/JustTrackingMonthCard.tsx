@@ -38,7 +38,7 @@ interface JustTrackingMonthCardProps {
   isLast?: boolean;
 }
 
-const WEEKDAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const WEEKDAY_HEADERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 /** Interactive monthly calendar card for a Just Tracking habit. */
 export const JustTrackingMonthCard: React.FC<JustTrackingMonthCardProps> = ({
@@ -78,7 +78,7 @@ export const JustTrackingMonthCard: React.FC<JustTrackingMonthCardProps> = ({
     () => eachDayOfInterval({ start: monthStart, end: monthEnd }),
     [monthStart, monthEnd]
   );
-  const leadingEmptyCount = daysInMonth[0] ? (getDay(daysInMonth[0]) + 6) % 7 : 0;
+  const leadingEmptyCount = daysInMonth[0] ? getDay(daysInMonth[0]) : 0;
 
   const totalCompletedAllTime = useMemo(
     () =>
@@ -253,126 +253,105 @@ export const JustTrackingMonthCard: React.FC<JustTrackingMonthCardProps> = ({
           </button>
         </div>
 
-        {/* MONTH NAVIGATOR + MONTH STATS BAR */}
-        <div className="flex items-center justify-between gap-2 bg-zinc-50/90 border border-zinc-200/70 rounded-2xl px-2.5 py-2">
-          <div className="flex items-center gap-1">
+        {/* MONTH NAVIGATOR (CLEAN PIC-2 STYLE: <   November 2026   >) */}
+        <div className="pt-1 space-y-3">
+          <div className="flex items-center justify-between gap-2 px-1">
             <button
               type="button"
               aria-label="Previous Month"
               onClick={() => setViewMonth(subMonths(viewMonth, 1))}
-              className="w-7 h-7 rounded-full bg-white hover:bg-zinc-100 text-zinc-700 flex items-center justify-center border border-zinc-200 transition-all active:scale-95 cursor-pointer shadow-2xs"
+              className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
             >
-              <ChevronLeft size={14} />
+              <ChevronLeft size={16} />
             </button>
 
-            <span className="font-display font-bold text-xs sm:text-sm text-zinc-900 px-2 min-w-[116px] text-center">
-              {format(viewMonth, 'MMMM yyyy')}
-            </span>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="font-display font-bold text-base text-zinc-900 text-center">
+                {format(viewMonth, 'MMMM yyyy')}
+              </span>
+              {!isCurrentMonth && (
+                <button
+                  type="button"
+                  onClick={() => setViewMonth(todayDate)}
+                  className="px-2 py-0.5 rounded-full bg-zinc-900 text-white hover:bg-zinc-700 text-[10px] font-bold transition-colors cursor-pointer"
+                >
+                  Today
+                </button>
+              )}
+            </div>
 
             <button
               type="button"
               aria-label="Next Month"
               onClick={() => setViewMonth(addMonths(viewMonth, 1))}
-              className="w-7 h-7 rounded-full bg-white hover:bg-zinc-100 text-zinc-700 flex items-center justify-center border border-zinc-200 transition-all active:scale-95 cursor-pointer shadow-2xs"
+              className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
             >
-              <ChevronRight size={14} />
+              <ChevronRight size={16} />
             </button>
-
-            {!isCurrentMonth && (
-              <button
-                type="button"
-                onClick={() => setViewMonth(todayDate)}
-                className="ml-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 hover:bg-purple-200 text-[10px] font-bold transition-colors cursor-pointer"
-              >
-                Today
-              </button>
-            )}
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span
-              className={clsx(
-                'px-2.5 py-1 rounded-full text-[11px] font-mono font-bold border',
-                monthCompletedCount > 0
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-white text-zinc-600 border-zinc-200'
-              )}
-            >
-              {monthCompletedCount}/{daysInMonth.length} days
-            </span>
+          {/* FULL MONTH INTERACTIVE DATE GRID (S M T W T F S CIRCULAR PILLS) */}
+          <div className="grid grid-cols-7 gap-y-2 gap-x-1 text-center">
+            {WEEKDAY_HEADERS.map((weekday, idx) => (
+              <div
+                key={`${weekday}-${idx}`}
+                className="text-xs font-semibold text-zinc-400 py-1"
+              >
+                {weekday}
+              </div>
+            ))}
+
+            {Array.from({ length: leadingEmptyCount }).map((_, idx) => (
+              <div key={`pad-${idx}`} className="h-9 sm:h-10" />
+            ))}
+
+            {daysInMonth.map((day) => {
+              const dKey = format(day, 'yyyy-MM-dd');
+              const isCompleted = logs?.[`${habit.id}_${dKey}`]?.status === 'COMPLETED';
+              const isToday = dKey === todayKey;
+              const isFuture = dKey > todayKey;
+
+              return (
+                <button
+                  key={dKey}
+                  type="button"
+                  onClick={() => handleLogDate(dKey)}
+                  aria-label={`${format(day, 'd MMMM yyyy')}${isCompleted ? ' completed' : ''}`}
+                  title={`${format(day, 'EEE, dd MMM yyyy')}: ${
+                    isCompleted ? 'Completed ✓' : isFuture ? 'Future date' : 'Tap to mark done'
+                  }`}
+                  className={clsx(
+                    'w-9 h-9 sm:w-10 sm:h-10 mx-auto rounded-full flex items-center justify-center text-sm transition-all select-none relative cursor-pointer',
+                    isCompleted
+                      ? clsx(
+                          'bg-emerald-500 text-white font-bold shadow-xs',
+                          isToday && 'ring-2 ring-zinc-900 ring-offset-2'
+                        )
+                      : isFuture
+                      ? 'text-zinc-300 font-medium'
+                      : isToday
+                      ? 'bg-zinc-950 text-white font-bold shadow-sm hover:bg-zinc-800 active:scale-95'
+                      : 'text-zinc-800 font-semibold hover:bg-rose-50 hover:text-rose-700 active:scale-95'
+                  )}
+                >
+                  <span>{format(day, 'd')}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* FULL MONTH INTERACTIVE DATE GRID */}
-        <div className="grid grid-cols-7 gap-1.5 text-center">
-          {WEEKDAY_HEADERS.map((weekday) => (
-            <div
-              key={weekday}
-              className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 pb-0.5"
-            >
-              {weekday}
-            </div>
-          ))}
-
-          {Array.from({ length: leadingEmptyCount }).map((_, idx) => (
-            <div key={`pad-${idx}`} className="h-10 sm:h-11" />
-          ))}
-
-          {daysInMonth.map((day) => {
-            const dKey = format(day, 'yyyy-MM-dd');
-            const isCompleted = logs?.[`${habit.id}_${dKey}`]?.status === 'COMPLETED';
-            const isToday = dKey === todayKey;
-            const isFuture = dKey > todayKey;
-
-            return (
-              <button
-                key={dKey}
-                type="button"
-                onClick={() => handleLogDate(dKey)}
-                aria-label={`${format(day, 'd MMMM yyyy')}${isCompleted ? ' completed' : ''}`}
-                title={`${format(day, 'EEE, dd MMM yyyy')}: ${
-                  isCompleted ? 'Completed ✓' : isFuture ? 'Future date' : 'Tap to mark done'
-                }`}
-                className={clsx(
-                  'h-10 sm:h-11 rounded-xl flex flex-col items-center justify-center border transition-all select-none relative cursor-pointer',
-                  isCompleted
-                    ? clsx(
-                        'bg-emerald-500 text-white border-emerald-600 font-bold shadow-xs',
-                        isToday && 'ring-2 ring-purple-600 ring-offset-1'
-                      )
-                    : isFuture
-                    ? 'opacity-35 bg-zinc-50 text-zinc-400 border-zinc-200/60'
-                    : isToday
-                    ? 'bg-purple-50 text-purple-900 border-purple-500 ring-1 ring-purple-400/50 font-extrabold hover:bg-purple-100 active:scale-95'
-                    : 'bg-zinc-50 text-zinc-700 border-zinc-200/80 hover:bg-purple-50/70 hover:border-purple-300 font-semibold active:scale-95'
-                )}
-              >
-                <span className="font-mono text-xs sm:text-sm leading-none">
-                  {format(day, 'd')}
-                </span>
-
-                {isCompleted ? (
-                  <Check size={10} strokeWidth={3} className="mt-0.5 leading-none" />
-                ) : isToday ? (
-                  <span className="w-1.5 h-1.5 rounded-full bg-purple-600 mt-1" />
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* BOTTOM FOOTER: LEGEND / QUICK LOG TODAY / DETAILS */}
-        <div className="pt-2 border-t border-zinc-100 flex items-center justify-between gap-2 flex-wrap text-[11px] text-zinc-500">
+        {/* BOTTOM FOOTER: LEGEND / MONTH COUNT / QUICK LOG TODAY / DETAILS */}
+        <div className="pt-2.5 border-t border-zinc-100 flex items-center justify-between gap-2 flex-wrap text-[11px] text-zinc-500">
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
-              Done
+              Done ({monthCompletedCount}/{daysInMonth.length})
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block" />
+              <span className="w-2.5 h-2.5 rounded-full bg-zinc-950 inline-block" />
               Today
             </span>
-            <span className="hidden sm:inline text-zinc-400">· Tap any date to mark</span>
           </div>
 
           <div className="flex items-center gap-2 ml-auto">

@@ -129,7 +129,7 @@ export function compareVersions(v1: string, v2: string): number {
 function formatDownloadError(rawMessage?: string): string {
   const msg = rawMessage || '';
   if (/insufficient_disk_space/i.test(msg)) {
-    return 'Not enough phone storage space (~500 MB free space needed). Free up some space or download the full APK.';
+    return 'Not enough phone storage space (~50 MB free space needed). Free up some space or download the full APK.';
   }
   if (/checksum/i.test(msg)) {
     return 'Update security verification failed. Please retry or download the full APK.';
@@ -167,17 +167,37 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
   try {
     const activeCommit = await getEffectiveBuildCommit();
 
-    // 1. Check official GitHub Releases first for compiled assets
+    // 1. Check recent official GitHub Releases (no-store + cache-buster) so skipped intermediate
+    // updates are bypassed cleanly and the newest complete release is always selected.
     let latestRelease: any = null;
     let releaseCheckError: string | null = null;
+    const cacheBust = Date.now();
     try {
-      const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
-        headers: {
-          Accept: 'application/vnd.github.v3+json',
-        },
-      });
+      const res = await fetch(
+        `https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=5&_ts=${cacheBust}`,
+        {
+          cache: 'no-store',
+          headers: {
+            Accept: 'application/vnd.github.v3+json',
+          },
+        }
+      );
       if (res.ok) {
-        latestRelease = await res.json();
+        const releases = await res.json();
+        if (Array.isArray(releases)) {
+          const validReleases = releases.filter((r: any) => !r.draft && !r.prerelease);
+          latestRelease =
+            validReleases.find(
+              (r: any) =>
+                Array.isArray(r.assets) &&
+                r.assets.some((a: any) => a.name?.toLowerCase() === 'bundle.zip')
+            ) ||
+            validReleases.find(
+              (r: any) => Array.isArray(r.assets) && r.assets.length > 0
+            ) ||
+            validReleases[0] ||
+            null;
+        }
       } else if (res.status !== 404) {
         releaseCheckError =
           res.status === 403 || res.status === 429
@@ -238,11 +258,15 @@ export async function checkForAppUpdate(): Promise<AppReleaseInfo> {
     }
 
     // 2. Check live GitHub Commits on main branch to detect pushed updates that are still building
-    const commitRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/commits?per_page=1`, {
-      headers: {
-        Accept: 'application/vnd.github.v3+json',
-      },
-    });
+    const commitRes = await fetch(
+      `https://api.github.com/repos/${GITHUB_REPO}/commits?per_page=1&_ts=${cacheBust}`,
+      {
+        cache: 'no-store',
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+        },
+      }
+    );
 
     if (commitRes.ok) {
       const commits = await commitRes.json();
@@ -372,7 +396,12 @@ export async function restartApp(): Promise<void> {
       if ('caches' in window) {
         try {
           const keys = await caches.keys();
-          await Promise.all(keys.map((k) => caches.delete(k).catch(() => false)));
+          // Keep cached motivational reels across code-only OTA updates so unchanged videos never re-download
+          await Promise.all(
+            keys
+              .filter((k) => !k.startsWith('habitseen-reels-'))
+              .map((k) => caches.delete(k).catch(() => false))
+          );
         } catch {}
       }
       await CapacitorUpdater.reload();

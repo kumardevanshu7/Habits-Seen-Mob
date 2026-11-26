@@ -5,7 +5,11 @@ import { HeartPulse, AlertTriangle, ShieldAlert, RefreshCw, Trash2, Sparkles } f
 import { SecurityModal } from '../security/SecurityModal';
 
 export const ZeroVitalityPurgeModal: React.FC = () => {
-  const { user, currentUser, softResetAccount, resetEntireAccount } = useAppStore();
+  const { user, currentUser, habits, challenges, habitBreaks, softResetAccount, resetEntireAccount } = useAppStore();
+
+  const suddenDeathReason =
+    user?.gamification?.lastHeartLossReason ||
+    'Vitality (Hearts) dropped to 0 due to missed habits or failed challenges.';
 
   const hearts = user?.gamification?.hearts;
   const isZeroLives =
@@ -109,10 +113,20 @@ export const ZeroVitalityPurgeModal: React.FC = () => {
           </div>
 
           <h2 className="font-display font-extrabold text-2xl sm:text-3xl text-white tracking-tight uppercase">
-            Reset &amp; Recover
+            Sudden Death Reset
           </h2>
           <p className="text-stone text-xs sm:text-sm max-w-sm mx-auto leading-relaxed">
-            Your hearts have reached <strong className="text-red-400">0</strong>. Everyone stumbles—what matters is restarting. A Soft Reset will restore your vitality so you can continue building momentum.
+            Your hearts hit <strong className="text-red-400">0</strong>. Active habits, challenges &amp; streaks will be cleared and logged to your Sudden Death History before reviving with fresh 5/5 hearts.
+          </p>
+        </div>
+
+        {/* Sudden Death Cause Banner */}
+        <div className="p-3 bg-red-950/60 border border-red-500/40 rounded-xl text-left">
+          <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-red-400 block">
+            Trigger Reason
+          </span>
+          <p className="text-xs text-red-100 font-semibold mt-0.5 leading-snug">
+            {suddenDeathReason}
           </p>
         </div>
 
@@ -140,12 +154,14 @@ export const ZeroVitalityPurgeModal: React.FC = () => {
         <div className="text-[11px] text-stone/80 text-left bg-red-950/20 border border-red-900/40 rounded-xl p-3 space-y-1">
           <p className="font-bold text-red-300 flex items-center gap-1.5">
             <ShieldAlert size={14} className="text-red-500 shrink-0" />
-            <span>Soft Reset Protocol:</span>
+            <span>Sudden Death Protocol:</span>
           </p>
           <ul className="list-disc list-inside space-y-0.5 text-stone/90 pl-1">
-            <li>Your habits, categories, and logs remain completely safe.</li>
-            <li>Hearts are restored to full vitality (5/5).</li>
-            <li>A 100 XP penalty is applied for broken discipline.</li>
+            <li>
+              All active data wiped ({habits.length} habits, {challenges.length} challenges, {habitBreaks.length} timers) and XP reset to 0.
+            </li>
+            <li>Reason &amp; deleted habits are permanently saved in your Sudden Death History log.</li>
+            <li>Hearts restore to fresh 5/5 vitality so you can rebuild from Zero.</li>
           </ul>
         </div>
 

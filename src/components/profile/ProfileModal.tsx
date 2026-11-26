@@ -535,6 +535,90 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             )}
           </div>
 
+          {/* SUDDEN DEATH HISTORY LOG */}
+          <div className="p-4 bg-surface-card border border-rose-200/80 rounded-2xl shadow-2xs space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                  <Skull size={18} />
+                </div>
+                <div>
+                  <h4 className="font-display font-bold text-sm text-ink">
+                    Sudden Death History
+                  </h4>
+                  <p className="text-[11px] text-mute">
+                    Past 0-Vitality purges, reasons &amp; wiped habits
+                  </p>
+                </div>
+              </div>
+
+              <span className="font-mono text-[11px] font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200 shrink-0">
+                {(user.suddenDeathHistory || []).length} events
+              </span>
+            </div>
+
+            {!user.suddenDeathHistory || user.suddenDeathHistory.length === 0 ? (
+              <div className="p-3 rounded-xl bg-surface-bone/70 border border-hairline text-xs text-charcoal">
+                No sudden deaths yet. Keep your Vitality above 0 to protect your habits!
+              </div>
+            ) : (
+              <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                {user.suddenDeathHistory.map((record) => (
+                  <div
+                    key={record.id}
+                    className="p-3 rounded-xl bg-rose-50/50 border border-rose-200/70 space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="font-mono font-bold text-rose-900">
+                        {new Date(record.occurredAt).toLocaleString()}
+                      </span>
+                      <span className="font-mono font-bold text-rose-700 bg-white px-2 py-0.5 rounded-full border border-rose-200">
+                        -{record.xpLost} XP lost
+                      </span>
+                    </div>
+
+                    <p className="text-xs font-semibold text-ink leading-snug">
+                      <span className="text-rose-700 font-bold">Reason: </span>
+                      {record.reason}
+                    </p>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-charcoal block">
+                        Habits Wiped ({record.wipedHabits.length}):
+                      </span>
+                      {record.wipedHabits.length === 0 ? (
+                        <span className="text-[11px] text-stone italic">
+                          No active habits at time of death
+                        </span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {record.wipedHabits.map((wh, idx) => (
+                            <span
+                              key={`${record.id}-${idx}`}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white text-[11px] font-semibold text-rose-900 border border-rose-200"
+                            >
+                              <span>{wh.name}</span>
+                              {wh.streakLost > 0 && (
+                                <span className="text-[10px] font-mono text-rose-600">
+                                  ({wh.streakLost}d)
+                                </span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {(record.wipedChallengesCount > 0 || record.wipedHabitBreaksCount > 0) && (
+                        <p className="text-[10px] text-charcoal pt-0.5">
+                          Also cleared: {record.wipedChallengesCount} challenge(s), {record.wipedHabitBreaksCount} quit timer(s)
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* APP VERSION & IN-APP UPDATE CENTER (GITHUB RELEASES & LIVE OTA) */}
           <div className="p-4 bg-surface-card border border-hairline rounded-2xl shadow-2xs space-y-3">
             <div className="flex items-center justify-between gap-2">
@@ -622,7 +706,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                         <span>Download & Apply Update</span>
                       </Button>
                       <p className="text-[10px] text-emerald-800 text-center font-medium">
-                        ⚡ In-app live update{updateInfo.bundleSizeBytes ? ` (~${Math.round(updateInfo.bundleSizeBytes / (1024 * 1024))} MB)` : ''} • No APK reinstall needed
+                        ⚡ In-app live update
+                        {updateInfo.bundleSizeBytes
+                          ? updateInfo.bundleSizeBytes < 1024 * 1024
+                            ? ` (~${Math.max(1, Math.round(updateInfo.bundleSizeBytes / 1024))} KB)`
+                            : ` (~${(updateInfo.bundleSizeBytes / (1024 * 1024)).toFixed(1)} MB)`
+                          : ''}{' '}
+                        • No APK reinstall needed
                       </p>
                     </div>
                   ) : (

@@ -36,6 +36,7 @@ import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { Button } from './components/ui/Button';
 import { AlertCircle, RefreshCw, WifiOff } from 'lucide-react';
 import { StartupAnchorSplash } from './components/startup/StartupAnchorSplash';
+import { syncChangedReels } from './utils/motivationalReels';
 import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
 
@@ -207,6 +208,15 @@ export const App: React.FC = () => {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  // Incrementally cache only newly added or modified motivational reels in the background
+  useEffect(() => {
+    if (!currentUser || !user?.isOnboarded) return;
+    const timer = setTimeout(() => {
+      void syncChangedReels();
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [currentUser, user?.isOnboarded]);
 
   // Native Android Hardware Back Gesture & Back Button Listener (Capacitor)
   useEffect(() => {

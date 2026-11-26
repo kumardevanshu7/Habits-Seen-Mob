@@ -9,6 +9,7 @@ import {
   HabitLog,
   HabitLogStatus,
   MissedReasonType,
+  SuddenDeathRecord,
   UserProfile,
 } from '../types/habit';
 import {
@@ -59,6 +60,7 @@ import {
   updateChallengeInDb,
   deleteChallengeFromDb,
   resetEntireUserDataInDb,
+  purgeActiveDataForSuddenDeathInDb,
 } from '../services/firestoreService';
 
 interface AppState {
@@ -1118,6 +1120,11 @@ export const useAppStore = create<AppState>()((set, get) => ({
 
       const newMaxHearts = calculateMaxHearts(newTotalXp);
 
+      const missReasonSummary =
+        totalHeartDeduction > 0
+          ? `Missed "${habit.name}" (${dateKey})${reasonText ? `: ${reasonText}` : ''}`
+          : state.user.gamification.lastHeartLossReason;
+
       const updatedUser: UserProfile = {
         ...state.user,
         gamification: {
@@ -1129,6 +1136,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
           levelTitle: newLevelTitle,
           xpLossTowardsHeart: newLossAccumulator,
           perfectDaysCompleted: updatedPerfectDays,
+          ...(missReasonSummary ? { lastHeartLossReason: missReasonSummary } : {}),
         },
       };
 
@@ -1515,6 +1523,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
           totalXp: newTotalXp,
           level: lvlInfo.level,
           levelTitle: lvlInfo.title,
+          lastHeartLossReason: `Failed hardcore challenge "${challenge.name}" on ${dateKey} (-90% Health)`,
         },
       };
 
@@ -1712,6 +1721,14 @@ export const useAppStore = create<AppState>()((set, get) => ({
     const lvlInfo = levelFromXp(newTotalXp);
     const newMaxHearts = calculateMaxHearts(newTotalXp);
 
+    const affectedNames = habits
+      .filter((h) => affectedHabitIds.has(h.id))
+      .map((h) => h.name);
+    const midnightReason =
+      heartsToDeduct > 0 && affectedNames.length > 0
+        ? `Missed scheduled habit(s) at midnight: ${affectedNames.join(', ')}`
+        : user.gamification.lastHeartLossReason;
+
     const updatedUser: UserProfile = {
       ...user,
       gamification: {
@@ -1722,6 +1739,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
         hearts: Math.min(newMaxHearts, newHearts),
         maxHearts: newMaxHearts,
         xpLossTowardsHeart: newLossAccumulator,
+        ...(midnightReason ? { lastHeartLossReason: midnightReason } : {}),
       },
     };
 
@@ -1811,30 +1829,67 @@ export const useAppStore = create<AppState>()((set, get) => ({
   },
 
   softResetAccount: async () => {
-    const { currentUser, user } = get();
+    const { currentUser, user, habits, categories, habitBreaks, challenges } = get();
     if (!currentUser || !user) return;
     // Guard against race conditions: only trigger if hearts <= 0
     if ((user.gamification?.hearts ?? 5) > 0) return;
 
-    const currentXp = user.gamification?.totalXp ?? 0;
-    const xpPenalty = Math.min(GAME_RULES.SOFT_RESET_XP_PENALTY, currentXp);
-    const newXp = Math.max(0, currentXp - xpPenalty);
-    const lvlInfo = levelFromXp(newXp);
-    const maxH = calculateMaxHearts(newXp);
+    const now = new Date().toISOString();
+    const xpLost = user.gamification?.totalXp ?? 0;
+    const catMap = new Map(categories.map((c) => [c.id, c.name]));
+
+    const wipedHabits = habits.map((h) => ({
+      name: h.name,
+      categoryName: catMap.get(h.categoryId),
+      streakLost: h.stats?.currentStreak || 0,
+    }));
+
+    const reason =
+      user.gamification?.lastHeartLossReason ||
+      'Vitality (Hearts) dropped to 0 due to missed habits or failed challenges.';
+
+    const deathRecord: SuddenDeathRecord = {
+      id: `death-${Date.now()}`,
+      occurredAt: now,
+      reason,
+      wipedHabits,
+      wipedHabitBreaksCount: habitBreaks.length,
+      wipedChallengesCount: challenges.length,
+      xpLost,
+    };
+
+    const existingHistory = Array.isArray(user.suddenDeathHistory)
+      ? user.suddenDeathHistory
+      : [];
+
+    const lvlInfo = levelFromXp(0);
+    const maxH = calculateMaxHearts(0);
     const updatedUser: UserProfile = {
       ...user,
+      isOnboarded: true,
+      suddenDeathHistory: [deathRecord, ...existingHistory].slice(0, 50),
       gamification: {
-        ...user.gamification,
-        hearts: maxH,
-        maxHearts: maxH,
-        totalXp: newXp,
         level: lvlInfo.level,
         levelTitle: lvlInfo.title,
-        lastDeathAt: new Date().toISOString(),
+        totalXp: 0,
+        consistencyScore: 0,
+        hearts: maxH,
+        maxHearts: maxH,
+        xpLossTowardsHeart: 0,
+        perfectDaysCompleted: [],
+        lastDeathAt: now,
       },
     };
-    await saveUserProfileToDb(currentUser.uid, updatedUser);
-    set({ user: updatedUser });
+
+    await purgeActiveDataForSuddenDeathInDb(currentUser.uid, updatedUser, DEFAULT_CATEGORY);
+    set({
+      habits: [],
+      logs: {},
+      categories: [DEFAULT_CATEGORY],
+      habitBreaks: [],
+      challenges: [],
+      user: updatedUser,
+    });
   },
 
   resetEntireAccount: async () => {
