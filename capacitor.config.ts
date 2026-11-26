@@ -15,6 +15,7 @@ const config: CapacitorConfig = {
       autoUpdate: false,
       resetWhenUpdate: true,
       responseTimeout: 120,
+      appReadyTimeout: 30000,
     },
   },
 };

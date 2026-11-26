@@ -85,6 +85,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     updateInfo,
     updateError,
     downloadProgress,
+    isRestarting,
     isRestartModalOpen,
     setRestartModalOpen: setIsRestartModalOpen,
     checkUpdates: handleCheckForUpdates,
@@ -945,14 +946,30 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               All new features and enhancements have been downloaded. Restart the application now to launch the updated version.
             </p>
           </div>
+          {updateError && (
+            <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-left text-xs text-amber-800 space-y-1.5">
+              <p className="font-semibold">{updateError}</p>
+              {updateInfo?.apkDownloadUrl && (
+                <button
+                  type="button"
+                  onClick={handleDownloadFullApk}
+                  className="text-primary font-bold underline cursor-pointer"
+                >
+                  Download ~10 MB APK Installer instead →
+                </button>
+              )}
+            </div>
+          )}
           <div className="flex flex-col gap-2 pt-2">
             <Button
               variant="primary"
               size="md"
               onClick={handleRestartNow}
+              disabled={isRestarting}
               className="w-full font-bold shadow-md gap-2"
             >
-              <RotateCcw size={16} /> Restart Application Now
+              <RotateCcw size={16} className={clsx(isRestarting && 'animate-spin')} />{' '}
+              {isRestarting ? 'Applying Update...' : 'Restart Application Now'}
             </Button>
             <Button
               variant="ghost"

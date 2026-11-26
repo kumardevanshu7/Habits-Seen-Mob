@@ -320,7 +320,7 @@ export async function downloadLiveUpdate(
   version: string,
   checksum?: string,
   onProgress?: (percent: number) => void
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; bundleId?: string; error?: string }> {
   let downloadListener: any = null;
   try {
     // If running in browser (non-native), simulate progress for testing
@@ -369,7 +369,7 @@ export async function downloadLiveUpdate(
     await CapacitorUpdater.next({ id: bundle.id });
 
     onProgress?.(100);
-    return { success: true };
+    return { success: true, bundleId: bundle.id };
   } catch (err: any) {
     console.error('Failed to download live update bundle:', err);
     return { success: false, error: formatDownloadError(err?.message) };
@@ -382,33 +382,33 @@ export async function downloadLiveUpdate(
 
 /**
  * Restarts the application to apply the downloaded Live Update.
+ * Uses CapacitorUpdater.set({ id }) when bundleId is provided for reliable activation.
  */
-export async function restartApp(): Promise<void> {
-  try {
-    if (Capacitor.isNativePlatform()) {
-      // Ensure any legacy Service Worker & Workbox cache are purged before switching bundle paths
-      if ('serviceWorker' in navigator) {
-        try {
-          const regs = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(regs.map((r) => r.unregister().catch(() => false)));
-        } catch {}
-      }
-      if ('caches' in window) {
-        try {
-          const keys = await caches.keys();
-          // Keep cached motivational reels across code-only OTA updates so unchanged videos never re-download
-          await Promise.all(
-            keys
-              .filter((k) => !k.startsWith('habitseen-reels-'))
-              .map((k) => caches.delete(k).catch(() => false))
-          );
-        } catch {}
-      }
-      await CapacitorUpdater.reload();
-    } else {
-      window.location.reload();
+export async function restartApp(bundleId?: string | null): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    if ('serviceWorker' in navigator) {
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister().catch(() => false)));
+      } catch {}
     }
-  } catch {
+    if ('caches' in window) {
+      try {
+        const keys = await caches.keys();
+        // Keep cached motivational reels across code-only OTA updates so unchanged videos never re-download
+        await Promise.all(
+          keys
+            .filter((k) => !k.startsWith('habitseen-reels-'))
+            .map((k) => caches.delete(k).catch(() => false))
+        );
+      } catch {}
+    }
+    if (bundleId) {
+      await CapacitorUpdater.set({ id: bundleId });
+    } else {
+      await CapacitorUpdater.reload();
+    }
+  } else {
     window.location.reload();
   }
 }

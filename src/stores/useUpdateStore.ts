@@ -20,6 +20,8 @@ interface UpdateStoreState {
   updateInfo: AppReleaseInfo | null;
   updateError: string | null;
   downloadProgress: number;
+  pendingBundleId: string | null;
+  isRestarting: boolean;
   isRestartModalOpen: boolean;
 
   setRestartModalOpen: (open: boolean) => void;
@@ -33,6 +35,8 @@ export const useUpdateStore = create<UpdateStoreState>((set, get) => ({
   updateInfo: null,
   updateError: null,
   downloadProgress: 0,
+  pendingBundleId: null,
+  isRestarting: false,
   isRestartModalOpen: false,
 
   setRestartModalOpen: (open: boolean) => set({ isRestartModalOpen: open }),
@@ -65,6 +69,7 @@ export const useUpdateStore = create<UpdateStoreState>((set, get) => ({
       updateStatus: 'downloading',
       downloadProgress: 0,
       updateError: null,
+      pendingBundleId: null,
     });
 
     const res = await downloadLiveUpdate(
@@ -80,6 +85,7 @@ export const useUpdateStore = create<UpdateStoreState>((set, get) => ({
       set({
         updateStatus: 'ready-to-restart',
         downloadProgress: 100,
+        pendingBundleId: res.bundleId || null,
         isRestartModalOpen: true,
       });
     } else {
@@ -92,7 +98,18 @@ export const useUpdateStore = create<UpdateStoreState>((set, get) => ({
   },
 
   restartToApply: async () => {
-    // Keep modal mounted during reload so Modal cleanup does not fire history.go(-1) concurrently
-    await restartApp();
+    const { pendingBundleId, isRestarting } = get();
+    if (isRestarting) return;
+    set({ isRestarting: true, updateError: null });
+    try {
+      await restartApp(pendingBundleId);
+    } catch (err: any) {
+      set({
+        isRestarting: false,
+        updateError:
+          err?.message ||
+          'Could not switch OTA bundle automatically. Try closing & reopening the app or install the APK directly.',
+      });
+    }
   },
 }));

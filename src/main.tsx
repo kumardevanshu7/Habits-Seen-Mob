@@ -24,9 +24,11 @@ if (Capacitor.isNativePlatform()) {
     caches
       .keys()
       .then((cacheNames) => {
-        cacheNames.forEach((name) => {
-          caches.delete(name).catch(() => {});
-        });
+        cacheNames
+          .filter((name) => !name.startsWith('habitseen-reels-'))
+          .forEach((name) => {
+            caches.delete(name).catch(() => {});
+          });
       })
       .catch(() => {});
   }
