@@ -12,12 +12,14 @@ import {
   Flag,
   Calendar,
   Link2,
+  CheckSquare,
 } from 'lucide-react';
 import clsx from 'clsx';
 import confetti from 'canvas-confetti';
-import { computeHabitStreaks, getPairSlotIds } from '../../utils/streakEngine';
+import { computeHabitStreaks, evaluateHabitSuccess, getPairSlotIds } from '../../utils/streakEngine';
 import { HabitActionsModal } from './HabitActionsModal';
 import { PairSlotsGroup } from './PairSlotsGroup';
+import { ChecklistPartsGroup } from './ChecklistPartsGroup';
 
 interface HabitCardProps {
   habit: Habit;
@@ -167,6 +169,46 @@ export const HabitCard: React.FC<HabitCardProps> = ({
     logHabit(habit.id, dateKey, { valuePairCompletedSlotIds: nextSlots });
   };
 
+  // MULTI-PART / CHECKLIST ITEM DATA & TOGGLE
+  const checklistItems = habit.config.checklist?.items || [];
+  const completedChecklistIds = useMemo(() => {
+    const valid = new Set(checklistItems.map((it) => it.id));
+    return (dayLog?.valueChecklistCompletedItemIds || []).filter((id) => valid.has(id));
+  }, [dayLog?.valueChecklistCompletedItemIds, checklistItems]);
+
+  const handleToggleChecklistItem = (itemId: string) => {
+    if (isDateLocked) {
+      showLockedNotice();
+      return;
+    }
+    if (isCompleted) {
+      showCompletedLockedNotice();
+      return;
+    }
+
+    const exists = completedChecklistIds.includes(itemId);
+    const nextIds = exists
+      ? completedChecklistIds.filter((id) => id !== itemId)
+      : [...completedChecklistIds, itemId];
+
+    const { isSuccess: willComplete } = evaluateHabitSuccess(habit, {
+      ...dayLog,
+      valueChecklistCompletedItemIds: nextIds,
+    });
+
+    if (willComplete) {
+      confetti({ particleCount: 55, spread: 70, origin: { y: 0.7 } });
+    }
+    logHabit(habit.id, dateKey, { valueChecklistCompletedItemIds: nextIds });
+  };
+
+  const multiBadgeLabel =
+    habit.type === 'PAIR'
+      ? `${completedPairSlots.length}/${allPairSlotIds.length}`
+      : habit.type === 'CHECKLIST'
+      ? `${completedChecklistIds.length}/${checklistItems.length}`
+      : null;
+
   // Calculate Progress Percentage for Progress Bar
   const progressPercent = useMemo(() => {
     if (isCompleted) return 100;
@@ -183,12 +225,11 @@ export const HabitCard: React.FC<HabitCardProps> = ({
       return Math.min(100, Math.round((currentLoggedSeconds / targetSeconds) * 100));
     }
     if (habit.type === 'CHECKLIST') {
-      const total = habit.config.checklist?.items.length || 1;
-      const done = (dayLog?.valueChecklistCompletedItemIds || []).length;
-      return Math.min(100, Math.round((done / total) * 100));
+      const total = checklistItems.length || 1;
+      return Math.min(100, Math.round((completedChecklistIds.length / total) * 100));
     }
     return 0;
-  }, [isCompleted, habit.type, currentNum, habit.config, currentLoggedSeconds, targetSeconds, dayLog]);
+  }, [isCompleted, habit.type, allPairSlotIds.length, completedPairSlots.length, currentNum, habit.config, currentLoggedSeconds, targetSeconds, checklistItems.length, completedChecklistIds.length]);
 
   const priorityLabel = habit.schedule.priority >= 70 ? 'High' : habit.schedule.priority >= 40 ? 'Medium' : 'Low';
   const priorityBg =
@@ -290,7 +331,14 @@ export const HabitCard: React.FC<HabitCardProps> = ({
                   {habit.type === 'PAIR' && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">
                       <Link2 size={9} />
-                      Pair {completedPairSlots.length}/{allPairSlotIds.length}
+                      Pair {multiBadgeLabel}
+                    </span>
+                  )}
+
+                  {habit.type === 'CHECKLIST' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      <CheckSquare size={9} />
+                      Combo {multiBadgeLabel}
                     </span>
                   )}
                 </div>
@@ -302,6 +350,18 @@ export const HabitCard: React.FC<HabitCardProps> = ({
                     pairs={pairList}
                     completedSlotIds={completedPairSlots}
                     onToggleSlot={handleTogglePairSlot}
+                    compact
+                  />
+                </div>
+              )}
+
+              {habit.type === 'CHECKLIST' && checklistItems.length > 0 && (
+                <div className="mb-2.5">
+                  <ChecklistPartsGroup
+                    items={checklistItems}
+                    completedItemIds={completedChecklistIds}
+                    onToggleItem={handleToggleChecklistItem}
+                    showStarBadges={habit.config.checklist?.successCondition === 'STARRED_ONLY'}
                     compact
                   />
                 </div>
@@ -327,13 +387,13 @@ export const HabitCard: React.FC<HabitCardProps> = ({
                   <span>{currentStreak > 0 ? `${currentStreak}d` : 'Day 1'}</span>
                 </div>
 
-                {habit.type === 'PAIR' ? (
+                {habit.type === 'PAIR' || habit.type === 'CHECKLIST' ? (
                   <span
                     className={clsx(
                       'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0',
                       isCompleted
                         ? 'bg-emerald-500 text-white'
-                        : completedPairSlots.length > 0
+                        : (habit.type === 'PAIR' ? completedPairSlots.length : completedChecklistIds.length) > 0
                         ? 'bg-amber-100 text-amber-800'
                         : 'bg-zinc-100 text-zinc-600'
                     )}
@@ -341,8 +401,10 @@ export const HabitCard: React.FC<HabitCardProps> = ({
                     {isCompleted && <Check size={10} strokeWidth={3} />}
                     <span>
                       {isCompleted
-                        ? 'Paired ✓'
-                        : `${completedPairSlots.length}/${allPairSlotIds.length} Done`}
+                        ? habit.type === 'PAIR'
+                          ? 'Paired ✓'
+                          : 'All Done ✓'
+                        : `${multiBadgeLabel} Done`}
                     </span>
                   </span>
                 ) : (
@@ -422,8 +484,9 @@ export const HabitCard: React.FC<HabitCardProps> = ({
                 />
                 {isCompleted
                   ? 'Completed'
-                  : habit.type === 'PAIR' && completedPairSlots.length > 0
-                  ? `Halfway (${completedPairSlots.length}/${allPairSlotIds.length})`
+                  : (habit.type === 'PAIR' && completedPairSlots.length > 0) ||
+                    (habit.type === 'CHECKLIST' && completedChecklistIds.length > 0)
+                  ? `Progress (${multiBadgeLabel})`
                   : 'Ongoing'}
               </span>
 
@@ -453,7 +516,14 @@ export const HabitCard: React.FC<HabitCardProps> = ({
               {habit.type === 'PAIR' && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 text-xs font-bold">
                   <Link2 size={11} />
-                  Pair ({completedPairSlots.length}/{allPairSlotIds.length})
+                  Pair ({multiBadgeLabel})
+                </span>
+              )}
+
+              {habit.type === 'CHECKLIST' && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
+                  <CheckSquare size={11} />
+                  Combo ({multiBadgeLabel})
                 </span>
               )}
             </div>
@@ -465,6 +535,18 @@ export const HabitCard: React.FC<HabitCardProps> = ({
                   pairs={pairList}
                   completedSlotIds={completedPairSlots}
                   onToggleSlot={handleTogglePairSlot}
+                />
+              </div>
+            )}
+
+            {/* MULTI-PART CHECKLIST GROUP (3-6+ ITEMS) */}
+            {habit.type === 'CHECKLIST' && checklistItems.length > 0 && (
+              <div className="mb-3.5">
+                <ChecklistPartsGroup
+                  items={checklistItems}
+                  completedItemIds={completedChecklistIds}
+                  onToggleItem={handleToggleChecklistItem}
+                  showStarBadges={habit.config.checklist?.successCondition === 'STARRED_ONLY'}
                 />
               </div>
             )}
@@ -495,13 +577,13 @@ export const HabitCard: React.FC<HabitCardProps> = ({
                   <span>{format(parseISO(dateKey), 'dd MMMM')}</span>
                 </div>
 
-                {habit.type === 'PAIR' ? (
+                {habit.type === 'PAIR' || habit.type === 'CHECKLIST' ? (
                   <span
                     className={clsx(
                       'inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold shrink-0',
                       isCompleted
                         ? 'bg-emerald-500 text-white'
-                        : completedPairSlots.length > 0
+                        : (habit.type === 'PAIR' ? completedPairSlots.length : completedChecklistIds.length) > 0
                         ? 'bg-amber-100 text-amber-800'
                         : 'bg-zinc-100 text-zinc-600'
                     )}
@@ -509,8 +591,10 @@ export const HabitCard: React.FC<HabitCardProps> = ({
                     {isCompleted && <Check size={12} strokeWidth={3} />}
                     <span>
                       {isCompleted
-                        ? 'Paired ✓'
-                        : `${completedPairSlots.length}/${allPairSlotIds.length} Paired`}
+                        ? habit.type === 'PAIR'
+                          ? 'Paired ✓'
+                          : 'All Done ✓'
+                        : `${multiBadgeLabel} Done`}
                     </span>
                   </span>
                 ) : (

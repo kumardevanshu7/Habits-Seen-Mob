@@ -339,26 +339,30 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
     if (e) e.preventDefault();
     if (submittingRef.current || isSubmitting) return;
 
-    const cleanedPairs = pairs
-      .map((p) => ({
-        id: p.id,
-        leftTitle: p.leftTitle.trim(),
-        rightTitle: p.rightTitle.trim(),
-      }))
-      .filter((p) => p.leftTitle || p.rightTitle);
+    const primaryPair = pairs[0] || { id: 'pair-1', leftTitle: '', rightTitle: '' };
+    const singlePair = {
+      id: primaryPair.id || 'pair-1',
+      leftTitle: primaryPair.leftTitle.trim(),
+      rightTitle: primaryPair.rightTitle.trim(),
+    };
+    const cleanedPairs = singlePair.leftTitle || singlePair.rightTitle ? [singlePair] : [];
 
     if (type === 'PAIR') {
-      if (cleanedPairs.length === 0) {
+      if (!singlePair.leftTitle || !singlePair.rightTitle) {
         setWizardStep(2);
-        setNameError('Please add at least 1 Left ↔ Right pair');
+        setNameError('Please enter both Left and Right side names for this Pair');
         return;
       }
-      const hasIncompletePair = cleanedPairs.some((p) => !p.leftTitle || !p.rightTitle);
-      if (hasIncompletePair) {
-        setWizardStep(2);
-        setNameError('Both Left and Right side names are required for every pair');
-        return;
-      }
+    }
+
+    const cleanedChecklistItems = checklistItems
+      .map((it) => ({ ...it, text: it.text.trim() }))
+      .filter((it) => it.text.length > 0);
+
+    if (type === 'CHECKLIST' && cleanedChecklistItems.length === 0) {
+      setWizardStep(2);
+      setNameError('Please enter at least 1 task part for this multi-part habit');
+      return;
     }
 
     const resolvedName =
@@ -404,9 +408,9 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
         };
       } else if (type === 'CHECKLIST') {
         config.checklist = {
-          items: checklistItems,
+          items: cleanedChecklistItems,
           successCondition: checklistCondition,
-          customMinCount: Number(customMinCount) || 1,
+          customMinCount: Math.min(cleanedChecklistItems.length, Math.max(1, Number(customMinCount) || 1)),
         };
       } else if (type === 'PAIR') {
         config.pair = {
@@ -484,6 +488,8 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                     Number(timerSecs) || 0
                   ) || 60
                 : undefined,
+            valueChecklistCompletedItemIds:
+              type === 'CHECKLIST' ? cleanedChecklistItems.map((it) => it.id) : undefined,
             valuePairCompletedSlotIds:
               type === 'PAIR' ? getPairSlotIds(cleanedPairs) : undefined,
             forceStatus: 'COMPLETED',
@@ -745,39 +751,41 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
           {/* ============================================================ */}
           {wizardStep === 2 && (
             <div className="space-y-4 animate-in fade-in duration-200">
-              {/* HABIT MODE SELECTOR: SINGLE HABIT VS PAIR HABIT */}
+              {/* HABIT MODE SELECTOR: SINGLE (1), PAIR (2), MULTI-PART (3-6+) */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-charcoal mb-2 ml-1">
                   Choose Habit Mode
                 </label>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => {
-                      if (type === 'PAIR') setType('YES_NO');
+                      if (type === 'PAIR' || type === 'CHECKLIST') setType('YES_NO');
                       if (nameError) setNameError('');
                     }}
                     className={clsx(
-                      'p-3 rounded-2xl border-2 text-left transition-all flex items-start gap-2.5 cursor-pointer',
-                      type !== 'PAIR'
+                      'p-2.5 sm:p-3 rounded-2xl border-2 text-left transition-all flex flex-col gap-1.5 cursor-pointer',
+                      type !== 'PAIR' && type !== 'CHECKLIST'
                         ? 'border-primary bg-primary/10 text-ink ring-2 ring-primary/25 shadow-xs'
                         : 'border-hairline bg-surface-card hover:bg-surface-bone text-charcoal'
                     )}
                   >
                     <div
                       className={clsx(
-                        'w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5',
-                        type !== 'PAIR' ? 'bg-primary text-white' : 'bg-surface-bone text-charcoal'
+                        'w-7 h-7 rounded-xl flex items-center justify-center shrink-0',
+                        type !== 'PAIR' && type !== 'CHECKLIST'
+                          ? 'bg-primary text-white'
+                          : 'bg-surface-bone text-charcoal'
                       )}
                     >
-                      <ToggleLeft size={18} />
+                      <ToggleLeft size={16} />
                     </div>
                     <div className="min-w-0">
-                      <span className="block text-xs sm:text-sm font-bold text-ink">
-                        Single Habit
+                      <span className="block text-xs font-bold text-ink truncate">
+                        Single (1)
                       </span>
-                      <span className="block text-[11px] text-charcoal/80 leading-snug mt-0.5">
-                        1 standalone daily habit target
+                      <span className="block text-[10px] text-charcoal/80 leading-tight mt-0.5">
+                        1 standalone habit
                       </span>
                     </div>
                   </button>
@@ -789,7 +797,7 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                       if (nameError) setNameError('');
                     }}
                     className={clsx(
-                      'p-3 rounded-2xl border-2 text-left transition-all flex items-start gap-2.5 cursor-pointer',
+                      'p-2.5 sm:p-3 rounded-2xl border-2 text-left transition-all flex flex-col gap-1.5 cursor-pointer',
                       type === 'PAIR'
                         ? 'border-purple-600 bg-purple-50 text-ink ring-2 ring-purple-500/25 shadow-xs'
                         : 'border-hairline bg-surface-card hover:bg-surface-bone text-charcoal'
@@ -797,31 +805,71 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                   >
                     <div
                       className={clsx(
-                        'w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5',
+                        'w-7 h-7 rounded-xl flex items-center justify-center shrink-0',
                         type === 'PAIR' ? 'bg-purple-600 text-white' : 'bg-surface-bone text-charcoal'
                       )}
                     >
-                      <Link2 size={18} />
+                      <Link2 size={16} />
                     </div>
                     <div className="min-w-0">
-                      <span className="block text-xs sm:text-sm font-bold text-ink">
-                        Pair Habit
+                      <span className="block text-xs font-bold text-ink truncate">
+                        Pair (2)
                       </span>
-                      <span className="block text-[11px] text-charcoal/80 leading-snug mt-0.5">
-                        Left o—|—o Right · complete both
+                      <span className="block text-[10px] text-charcoal/80 leading-tight mt-0.5">
+                        Left o—|—o Right
+                      </span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setType('CHECKLIST');
+                      if (!habitToEdit && checklistItems.length < 3) {
+                        setChecklistItems([
+                          { id: `item-${Date.now()}-1`, text: '', isStarred: false },
+                          { id: `item-${Date.now()}-2`, text: '', isStarred: false },
+                          { id: `item-${Date.now()}-3`, text: '', isStarred: false },
+                        ]);
+                      }
+                      if (nameError) setNameError('');
+                    }}
+                    className={clsx(
+                      'p-2.5 sm:p-3 rounded-2xl border-2 text-left transition-all flex flex-col gap-1.5 cursor-pointer',
+                      type === 'CHECKLIST'
+                        ? 'border-emerald-600 bg-emerald-50 text-ink ring-2 ring-emerald-500/25 shadow-xs'
+                        : 'border-hairline bg-surface-card hover:bg-surface-bone text-charcoal'
+                    )}
+                  >
+                    <div
+                      className={clsx(
+                        'w-7 h-7 rounded-xl flex items-center justify-center shrink-0',
+                        type === 'CHECKLIST'
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-surface-bone text-charcoal'
+                      )}
+                    >
+                      <CheckSquare size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block text-xs font-bold text-ink truncate">
+                        Combo (3–6)
+                      </span>
+                      <span className="block text-[10px] text-charcoal/80 leading-tight mt-0.5">
+                        All parts = done
                       </span>
                     </div>
                   </button>
                 </div>
               </div>
 
-              {/* HABIT TYPE SELECTOR (4 TYPES) */}
-              {type !== 'PAIR' && (
+              {/* SINGLE HABIT TARGET TYPE (YES/NO, NUMERIC, TIMER) */}
+              {type !== 'PAIR' && type !== 'CHECKLIST' && (
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-charcoal mb-2 ml-1">
                     Habit Type
                   </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div className="grid grid-cols-3 gap-2.5">
                     <button
                       type="button"
                       onClick={() => setType('YES_NO')}
@@ -863,20 +911,6 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                       <Clock size={22} />
                       <span className="text-xs font-semibold">Timer Duration</span>
                     </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setType('CHECKLIST')}
-                      className={clsx(
-                        'flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all text-center gap-1.5',
-                        type === 'CHECKLIST'
-                          ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30 shadow-xs font-bold'
-                          : 'border-hairline bg-surface-card hover:bg-surface-bone text-charcoal'
-                      )}
-                    >
-                      <CheckSquare size={22} />
-                      <span className="text-xs font-semibold">Checklist</span>
-                    </button>
                   </div>
                 </div>
               )}
@@ -884,17 +918,23 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
               {/* HABIT NAME & INPUTS */}
               <div className="space-y-4 p-4 bg-surface-card rounded-2xl border border-hairline shadow-2xs">
                 <Input
-                  label={type === 'PAIR' ? 'Pair Task Title (Optional — auto-fills from Pair 1)' : 'Habit Name'}
+                  label={
+                    type === 'PAIR'
+                      ? 'Pair Habit Name (Optional — auto-fills from Left ↔ Right)'
+                      : type === 'CHECKLIST'
+                      ? 'Combo Habit Name (e.g. Morning Routine, Study Flow)'
+                      : 'Habit Name'
+                  }
                   placeholder={
                     type === 'PAIR'
-                      ? 'e.g. Daily Skincare, Morning & Night Routine'
+                      ? 'e.g. Daily Routine, AM/PM Skincare'
+                      : type === 'CHECKLIST'
+                      ? 'e.g. Complete Morning Routine (3–6 steps)'
                       : type === 'YES_NO'
                       ? 'e.g. Cold Shower, No Social Media'
                       : type === 'NUMERIC'
                       ? 'e.g. Daily Water Intake, Read Pages'
-                      : type === 'TIMER'
-                      ? 'e.g. Deep Meditation, Focused Coding'
-                      : 'e.g. Morning Routine, Evening Wind Down'
+                      : 'e.g. Deep Meditation, Focused Coding'
                   }
                   value={name}
                   onChange={(e) => {
@@ -1102,16 +1142,61 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                   </div>
                 )}
 
-                {/* 3. CHECKLIST TYPE CONFIG */}
+                {/* 3. MULTI-PART / CHECKLIST TYPE CONFIG (3, 4, 5, 6+ ITEMS) */}
                 {type === 'CHECKLIST' && (
                   <div className="pt-2 border-t border-hairline space-y-3">
+                    <div className="p-3 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 flex items-center justify-between gap-3 flex-wrap">
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                          <CheckSquare size={14} className="text-emerald-600 shrink-0" />
+                          Multi-Part Habit (3–6+ Parts)
+                        </span>
+                        <p className="text-[11px] text-emerald-800/80 mt-0.5">
+                          Har part card pe tap karke mark kar sakte ho — jab sabhi complete honge tab yeh habit pura hoga!
+                        </p>
+                      </div>
+
+                      {/* Quick Part Count Selector */}
+                      <div className="flex items-center gap-1">
+                        {[3, 4, 5, 6].map((cnt) => (
+                          <button
+                            key={cnt}
+                            type="button"
+                            onClick={() => {
+                              setChecklistItems((prev) => {
+                                if (prev.length === cnt) return prev;
+                                if (prev.length < cnt) {
+                                  const extra = Array.from({ length: cnt - prev.length }, (_, i) => ({
+                                    id: `item-${Date.now()}-${prev.length + i + 1}`,
+                                    text: '',
+                                    isStarred: false,
+                                  }));
+                                  return [...prev, ...extra];
+                                }
+                                return prev.slice(0, cnt);
+                              });
+                            }}
+                            className={clsx(
+                              'w-7 h-7 rounded-full text-xs font-mono font-bold transition-all border cursor-pointer',
+                              checklistItems.length === cnt
+                                ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                                : 'bg-white text-charcoal border-hairline hover:bg-emerald-50'
+                            )}
+                            title={`Set ${cnt} parts`}
+                          >
+                            {cnt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
                       <CustomSelect<typeof checklistCondition>
-                        label={`Success Rule (${checklistItems.length} items)`}
+                        label={`Completion Rule (${checklistItems.filter((i) => i.text.trim()).length} parts)`}
                         value={checklistCondition}
                         options={[
-                          { value: 'ALL_MANDATORY', label: 'All items are mandatory' },
-                          { value: 'STARRED_ONLY', label: 'Starred (★) items only' },
+                          { value: 'ALL_MANDATORY', label: 'All parts must be completed' },
+                          { value: 'STARRED_ONLY', label: 'Starred (★) parts only' },
                           { value: 'CUSTOM_MIN_ITEMS', label: 'Custom minimum count' },
                         ]}
                         onChange={(val) => setChecklistCondition(val)}
@@ -1119,7 +1204,7 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
 
                       {checklistCondition === 'CUSTOM_MIN_ITEMS' && (
                         <Input
-                          label="Minimum items required"
+                          label="Minimum parts required"
                           type="number"
                           min={1}
                           max={checklistItems.length || 1}
@@ -1129,33 +1214,52 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                       )}
                     </div>
 
-                    <div className="space-y-2 pt-1 max-h-48 overflow-y-auto">
-                      {checklistItems.map((item) => (
+                    {/* Directly Editable Multi-Part Inputs */}
+                    <div className="space-y-2 pt-1 max-h-56 overflow-y-auto">
+                      {checklistItems.map((item, idx) => (
                         <div
                           key={item.id}
-                          className="flex items-center justify-between gap-2 p-2 bg-surface-bone rounded-xl border border-hairline"
+                          className="flex items-center gap-2 p-2 bg-surface-bone rounded-xl border border-hairline"
                         >
-                          <button
-                            type="button"
-                            onClick={() => toggleStarItem(item.id)}
-                            className={clsx(
-                              'p-1 rounded-full transition-colors',
-                              item.isStarred ? 'text-amber-500' : 'text-stone hover:text-ink'
-                            )}
-                            title="Mark as Starred (Critical)"
-                          >
-                            <Star size={18} fill={item.isStarred ? 'currentColor' : 'none'} />
-                          </button>
-                          <span className="text-sm flex-1 font-medium text-ink truncate">
-                            {item.text}
+                          <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-mono font-bold flex items-center justify-center shrink-0">
+                            {idx + 1}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => removeChecklistItem(item.id)}
-                            className="p-1 text-stone hover:text-red-500 rounded-full transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          <input
+                            type="text"
+                            placeholder={`Part #${idx + 1} (e.g. Warmup, Set 1, Cool down)`}
+                            value={item.text}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (nameError) setNameError('');
+                              setChecklistItems((prev) =>
+                                prev.map((it) => (it.id === item.id ? { ...it, text: val } : it))
+                              );
+                            }}
+                            className="flex-1 min-w-0 bg-white text-ink text-xs sm:text-sm font-medium px-3 py-1.5 rounded-lg border border-hairline focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                          {checklistCondition === 'STARRED_ONLY' && (
+                            <button
+                              type="button"
+                              onClick={() => toggleStarItem(item.id)}
+                              className={clsx(
+                                'p-1 rounded-full transition-colors shrink-0',
+                                item.isStarred ? 'text-amber-500' : 'text-stone hover:text-ink'
+                              )}
+                              title="Mark as Starred (Critical)"
+                            >
+                              <Star size={17} fill={item.isStarred ? 'currentColor' : 'none'} />
+                            </button>
+                          )}
+                          {checklistItems.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeChecklistItem(item.id)}
+                              className="p-1 text-stone hover:text-red-500 rounded-full transition-colors shrink-0"
+                              title="Remove part"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1163,7 +1267,7 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                     <div className="flex gap-2">
                       <input
                         type="text"
-                        placeholder="Add sub-task..."
+                        placeholder="Quick add another part..."
                         value={newItemText}
                         onChange={(e) => setNewItemText(e.target.value)}
                         onKeyDown={(e) => {
@@ -1174,8 +1278,26 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                         }}
                         className="flex-1 bg-surface-bone text-ink text-sm px-4 py-2 rounded-full border border-hairline focus:outline-none"
                       />
-                      <Button type="button" variant="outline" size="sm" onClick={addChecklistItem}>
-                        <Plus size={14} /> Add Item
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (newItemText.trim()) {
+                            addChecklistItem();
+                          } else {
+                            setChecklistItems((prev) => [
+                              ...prev,
+                              {
+                                id: `item-${Date.now()}`,
+                                text: '',
+                                isStarred: false,
+                              },
+                            ]);
+                          }
+                        }}
+                      >
+                        <Plus size={14} /> Add Part
                       </Button>
                     </div>
 
@@ -1216,19 +1338,17 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                   </div>
                 )}
 
-                {/* 4. PAIR HABIT BUILDER (LEFT o—|—o RIGHT) */}
+                {/* 4. PAIR HABIT BUILDER (STRICTLY 1 PAIR: LEFT o—|—o RIGHT) */}
                 {type === 'PAIR' && (
                   <div className="pt-2 border-t border-hairline space-y-3.5">
-                    <div className="p-3 rounded-2xl bg-purple-50/80 border border-purple-200/80 flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <span className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
-                          <Link2 size={14} className="text-purple-600 shrink-0" />
-                          Linked Pair Rule
-                        </span>
-                        <p className="text-[11px] text-purple-800/80 mt-0.5">
-                          Task completes only when both Left and Right sides of every pair are checked!
-                        </p>
-                      </div>
+                    <div className="p-3 rounded-2xl bg-purple-50/80 border border-purple-200/80">
+                      <span className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                        <Link2 size={14} className="text-purple-600 shrink-0" />
+                        Pair Habit Rule (Strictly 2 Sides)
+                      </span>
+                      <p className="text-[11px] text-purple-800/80 mt-0.5">
+                        Dono sides (Left &amp; Right) mark karne par yeh habit complete maana jayega!
+                      </p>
                     </div>
 
                     {/* Quick Presets */}
@@ -1248,29 +1368,13 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                             type="button"
                             onClick={() => {
                               setNameError('');
-                              setPairs((prev) => {
-                                const hasEmptyFirst =
-                                  prev.length === 1 &&
-                                  !prev[0].leftTitle.trim() &&
-                                  !prev[0].rightTitle.trim();
-                                if (hasEmptyFirst) {
-                                  return [
-                                    {
-                                      id: prev[0].id,
-                                      leftTitle: preset.left,
-                                      rightTitle: preset.right,
-                                    },
-                                  ];
-                                }
-                                return [
-                                  ...prev,
-                                  {
-                                    id: `pair-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
-                                    leftTitle: preset.left,
-                                    rightTitle: preset.right,
-                                  },
-                                ];
-                              });
+                              setPairs([
+                                {
+                                  id: pairs[0]?.id || 'pair-1',
+                                  leftTitle: preset.left,
+                                  rightTitle: preset.right,
+                                },
+                              ]);
                             }}
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-bone hover:bg-purple-50 text-charcoal hover:text-purple-800 border border-hairline hover:border-purple-300 text-[11px] font-semibold transition-all cursor-pointer"
                           >
@@ -1282,42 +1386,25 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Pairs Rows */}
-                    <div className="space-y-2.5">
-                      {pairs.map((pair, idx) => (
-                        <div
-                          key={pair.id}
-                          className="p-3 rounded-2xl bg-surface-bone/70 border border-hairline space-y-2"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-charcoal">
-                              Pair #{idx + 1}
-                            </span>
-                            {pairs.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => setPairs(pairs.filter((p) => p.id !== pair.id))}
-                                className="text-xs text-stone hover:text-red-500 p-1 rounded-full transition-colors cursor-pointer"
-                                title="Remove Pair"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            )}
+                    {/* Single Left o—|—o Right Input Row */}
+                    {(() => {
+                      const activePair = pairs[0] || { id: 'pair-1', leftTitle: '', rightTitle: '' };
+                      return (
+                        <div className="p-3 rounded-2xl bg-surface-bone/70 border border-hairline space-y-2">
+                          <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-charcoal">
+                            <span>Left Side</span>
+                            <span>Right Side</span>
                           </div>
 
                           <div className="flex items-center gap-1.5">
                             <input
                               type="text"
                               placeholder="Left (e.g. Morning Routine)"
-                              value={pair.leftTitle}
+                              value={activePair.leftTitle}
                               onChange={(e) => {
                                 const val = e.target.value;
                                 if (nameError) setNameError('');
-                                setPairs(
-                                  pairs.map((p) =>
-                                    p.id === pair.id ? { ...p, leftTitle: val } : p
-                                  )
-                                );
+                                setPairs([{ ...activePair, leftTitle: val }]);
                               }}
                               className="flex-1 min-w-0 bg-white text-ink text-xs sm:text-sm font-medium px-3 py-2.5 rounded-xl border border-hairline focus:outline-none focus:ring-2 focus:ring-purple-500"
                             />
@@ -1334,41 +1421,18 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                             <input
                               type="text"
                               placeholder="Right (e.g. Night Routine)"
-                              value={pair.rightTitle}
+                              value={activePair.rightTitle}
                               onChange={(e) => {
                                 const val = e.target.value;
                                 if (nameError) setNameError('');
-                                setPairs(
-                                  pairs.map((p) =>
-                                    p.id === pair.id ? { ...p, rightTitle: val } : p
-                                  )
-                                );
+                                setPairs([{ ...activePair, rightTitle: val }]);
                               }}
                               className="flex-1 min-w-0 bg-white text-ink text-xs sm:text-sm font-medium px-3 py-2.5 rounded-xl border border-hairline focus:outline-none focus:ring-2 focus:ring-purple-500"
                             />
                           </div>
                         </div>
-                      ))}
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          setPairs([
-                            ...pairs,
-                            {
-                              id: `pair-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
-                              leftTitle: '',
-                              rightTitle: '',
-                            },
-                          ])
-                        }
-                        className="w-full gap-1.5 border-dashed border-purple-400 text-purple-700 hover:bg-purple-50"
-                      >
-                        <Plus size={14} /> Add Another Pair
-                      </Button>
-                    </div>
+                      );
+                    })()}
                   </div>
                 )}
 

@@ -43,6 +43,7 @@ import { computeHabitStreaks, getPairSlotIds } from '../../utils/streakEngine';
 import { isDateInThisWeek, isDateInThisMonth, getTodayKey } from '../../utils/dateMath';
 import { SecurityModal } from '../security/SecurityModal';
 import { PairSlotsGroup } from '../habits/PairSlotsGroup';
+import { ChecklistPartsGroup } from '../habits/ChecklistPartsGroup';
 
 interface HabitDetailsModalProps {
   habit: Habit | null;
@@ -299,6 +300,27 @@ export const HabitDetailsModal: React.FC<HabitDetailsModalProps> = ({
             <PairSlotsGroup
               pairs={habit.config.pair?.pairs || []}
               completedSlotIds={logs?.[`${habit.id}_${getTodayKey()}`]?.valuePairCompletedSlotIds || []}
+              readOnly
+              compact
+            />
+          </div>
+        )}
+
+        {/* MULTI-PART COMBO BREAKDOWN (TODAY) */}
+        {habit.type === 'CHECKLIST' && (habit.config.checklist?.items?.length || 0) > 0 && (
+          <div className="p-4 bg-surface-card border border-hairline rounded-2xl space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-charcoal">
+                Habit Parts (Today)
+              </h4>
+              <span className="text-[11px] font-semibold text-emerald-700">
+                Complete parts to finish habit
+              </span>
+            </div>
+            <ChecklistPartsGroup
+              items={habit.config.checklist?.items || []}
+              completedItemIds={logs?.[`${habit.id}_${getTodayKey()}`]?.valueChecklistCompletedItemIds || []}
+              showStarBadges={habit.config.checklist?.successCondition === 'STARRED_ONLY'}
               readOnly
               compact
             />
